@@ -1,5 +1,6 @@
-function C = get_data_correlation(img_dir, num_images, img_size, image_format, results_file)
-% usage: C = get_data_correlation('/clusterfs/cortex/scratch/shiry/image-net-tiny/man_made/', 12573, [32 32], '.JPEG', '/clusterfs/cortex/scratch/shiry/results/data_correlation/man_made.mat')
+function [C,X] = get_data_correlation(img_dir, num_images, img_size, image_format, results_file)
+% usage1: C_man_made = get_data_correlation('/clusterfs/cortex/scratch/shiry/image-net-tiny/man_made/', 12575, [32 32], '.JPEG', '/clusterfs/cortex/scratch/shiry/results/data_correlation/man_made.mat');
+% usage2: C_natural = get_data_correlation('/clusterfs/cortex/scratch/shiry/image-net-tiny/natural/', 11214, [32 32], '.JPEG', '/clusterfs/cortex/scratch/shiry/results/data_correlation/natural.mat');
 
 % create the data matrix where each image will be a column vector
 if (length(img_size) == 2)
@@ -28,7 +29,7 @@ for i = 1:length(image_directories)
         end
     end
 end
-% compute the columnwise covariance between images in this dataset
+% compute the row-wise covariance between pixel locations across images in this dataset
 C = cov(X);
 save(results_file,'C');
 end
