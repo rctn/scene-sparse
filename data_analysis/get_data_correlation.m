@@ -1,5 +1,5 @@
 function C = get_data_correlation(img_dir, num_images, img_size, image_format, results_file)
-% usage:
+% usage: C = get_data_correlation('/clusterfs/cortex/scratch/shiry/image-net-tiny/man_made/', 12573, [32 32], '.JPEG', '/clusterfs/cortex/scratch/shiry/results/data_correlation/man_made.mat')
 
 % create the data matrix where each image will be a column vector
 if (length(img_size) == 2)
@@ -21,7 +21,7 @@ for i = 1:length(image_directories)
         images = dir([current_path '/*' image_format]);
         for j = 1:length(images)
             current_image = images(j).name;
-            I = imread([current_path current_image], image_format);
+            I = imread([current_path current_image]);
             % convert image to a column vector
             X(:,idx) = reshape(I, [M 1]);
             idx = idx + 1;
@@ -30,5 +30,5 @@ for i = 1:length(image_directories)
 end
 % compute the columnwise covariance between images in this dataset
 C = cov(X);
-save(results_file,C);
+save(results_file,'C');
 end
