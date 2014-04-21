@@ -1,10 +1,11 @@
 %This script will do the scene sparse algorithm
 function [err] = scene_sparse(path)
-addpath('../fast_sc/*')
+disp('Starting Execution')
+addpath('../fast_sc/code/')
 
 %Input paths
 if nargin <1
-	path='/clusterfs/cortex/scratch/mayur/scene-sparse/man_made';
+	path='/clusterfs/cortex/scratch/shiry/scene-sparse/man_made';
 end
 	%Load data
 
@@ -18,9 +19,13 @@ end
 	sparsity_func = 'epsL1'; %The other option is 'L1'
 	epsilon = .001;
 	beta=.01;
+    fname_save = '/clusterfs/cortex/scratch/shiry/scene-sparse/man_made/test.mat';
+   
 
+    %Whiten the data 
+    
 	Binit = [] ; %Inferred coefficients, start with empty
-	[B S stat] = sparse_coding(X_orig, num_bases, beta, sparsity_func, epsilon, num_iters, batch_size, fname_save, Binit )%, resample_size);
+	[B S stat] = sparse_coding(X_orig, num_bases, beta, sparsity_func, epsilon, num_iters, batch_size, fname_save)%, resample_size);
 %Save Dictionary
 
 %Make Image
