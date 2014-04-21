@@ -27,7 +27,8 @@ end
 	Binit = [] ; %Inferred coefficients, start with empty
 	[B S stat] = sparse_coding(X_orig, num_bases, beta, sparsity_func, epsilon, num_iters, batch_size, fname_save)%, resample_size);
 %Save Dictionary
-
+% Shiry will write the save function's path here 
+%save('path that shiry will write','B','S','stat');
 %Make Image
 
 end
