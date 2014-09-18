@@ -3,10 +3,12 @@ function [C,X] = get_data_correlation(img_dir, num_images_, img_size_, image_for
 % usage2: C_natural = get_data_correlation('/clusterfs/cortex/scratch/shiry/image-net-tiny/natural/', 11214, [32 32], '.JPEG', '/clusterfs/cortex/scratch/shiry/results/data_correlation/natural.mat');
 
 %Converting Strings back to integers
-num_images=str2int(num_images_);
-img_size=[str2int(img_size_),str2int(img_size_)];
+num_images=str2num(num_images_);
+img_size=[str2num(img_size_),str2num(img_size_)];
 
-
+%DEBUG. Printing inputs for sanity check
+sprintf('%s',img_dir)
+sprintf('%s',image_format)
 % create the data matrix where each image will be a column vector
 if (length(img_size) == 2)
     M = img_size(1) * img_size(2);
@@ -20,13 +22,13 @@ idx = 1;
 image_directories = dir(img_dir);
 % for each image directory
 for i = 1:length(image_directories)
-    current_dir = image_directories(i).name;
+    current_dir = image_directories(i).name
     if(isempty(strmatch('.',current_dir)))
         current_path = [img_dir current_dir '/'];
         % list all images in this directory
-        images = dir([current_path '/*' image_format]);
+        images = dir([current_path '*' image_format])
         for j = 1:length(images)
-            current_image = images(j).name;
+            current_image = images(j).name
             I = imread([current_path current_image]);
             % convert image to a column vector
             X(:,idx) = reshape(I, [M 1]);
@@ -35,6 +37,6 @@ for i = 1:length(image_directories)
     end
 end
 % compute the row-wise covariance between pixel locations across images in this dataset
-C = cov(X);
+C = cov(X');
 save(results_file,'C');
 end
