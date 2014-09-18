@@ -1,6 +1,11 @@
-function [C,X] = get_data_correlation(img_dir, num_images, img_size, image_format, results_file)
+function [C,X] = get_data_correlation(img_dir, num_images_, img_size_, image_format, results_file)
 % usage1: C_man_made = get_data_correlation('/clusterfs/cortex/scratch/shiry/image-net-tiny/man_made/', 12575, [32 32], '.JPEG', '/clusterfs/cortex/scratch/shiry/results/data_correlation/man_made.mat');
 % usage2: C_natural = get_data_correlation('/clusterfs/cortex/scratch/shiry/image-net-tiny/natural/', 11214, [32 32], '.JPEG', '/clusterfs/cortex/scratch/shiry/results/data_correlation/natural.mat');
+
+%Converting Strings back to integers
+num_images=str2int(num_images_);
+img_size=[str2int(img_size_),str2int(img_size_)];
+
 
 % create the data matrix where each image will be a column vector
 if (length(img_size) == 2)
