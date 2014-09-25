@@ -38,5 +38,6 @@ for i = 1:length(image_directories)
 end
 % compute the row-wise covariance between pixel locations across images in this dataset
 C = cov(X');
-save(results_file,'C');
+C_reshape=reshape(diag(C),32,32);
+save(results_file,'C','C_reshape');
 end
