@@ -15,7 +15,7 @@ img_dir='/clusterfs/cortex/scratch/shiry/image-net-tiny/natural/'
 num_images=11214
 img_size=32
 image_format='.JPEG'
-results_file='/clusterfs/cortex/scratch/shiry/results/data_correlation/natural.mat'
+results_file='/clusterfs/cortex/scratch/shiry/results/data_correlation/natural'
 echo "Going to start Matlab job"
 matlab -nodesktop -r "get_data_correlation $img_dir $num_images $img_size $image_format $results_file; exit"
 echo "Finished Matlab job"

@@ -1,6 +1,6 @@
 function [C,X] = get_data_correlation(img_dir, num_images_, img_size_, image_format, results_file)
-% usage1: C_man_made = get_data_correlation('/clusterfs/cortex/scratch/shiry/image-net-tiny/man_made/', 12575, [32 32], '.JPEG', '/clusterfs/cortex/scratch/shiry/results/data_correlation/man_made.mat');
-% usage2: C_natural = get_data_correlation('/clusterfs/cortex/scratch/shiry/image-net-tiny/natural/', 11214, [32 32], '.JPEG', '/clusterfs/cortex/scratch/shiry/results/data_correlation/natural.mat');
+% usage1: C_man_made = get_data_correlation('/clusterfs/cortex/scratch/shiry/image-net-tiny/man_made/', 12575, [32 32], '.JPEG', '/clusterfs/cortex/scratch/shiry/results/data_correlation/man_made');
+% usage2: C_natural = get_data_correlation('/clusterfs/cortex/scratch/shiry/image-net-tiny/natural/', 11214, [32 32], '.JPEG', '/clusterfs/cortex/scratch/shiry/results/data_correlation/natural');
 
 %Converting Strings back to integers
 num_images=str2num(num_images_);
@@ -39,5 +39,6 @@ end
 % compute the row-wise covariance between pixel locations across images in this dataset
 C = cov(X');
 C_reshape=reshape(diag(C),32,32);
-save(results_file,'C','C_reshape');
+save([results_file '_correlation.mat'],'C','C_reshape');
+save([results_file '_images.mat'], 'X');
 end
