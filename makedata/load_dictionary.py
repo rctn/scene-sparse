@@ -1,0 +1,11 @@
+__author__ = 'shiry'
+import importlib
+
+
+def load_dictionary(filename_no_extension):
+    """
+    :type filename_no_extension: A filename string without the .py extension
+    """
+    module = importlib.import_module(filename_no_extension)
+    assert isinstance(module.content, object)
+    return module.content
