@@ -25,6 +25,7 @@ def natural_xor_man_made(_d):
     # ^ is xor
     return _d['outdoor, natural'] ^ _d['outdoor, man-made']
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Process the SUN excel file, create a dictionary to reflect it and save it.')

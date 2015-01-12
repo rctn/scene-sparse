@@ -11,6 +11,7 @@ def load_dictionary(filename_no_extension):
     assert isinstance(module.content, dict)
     return module.content
 
+
 def save_dictionary(dictionary, filename):
     f = open(filename, "w")
     f.write("content = " + str(dictionary))
