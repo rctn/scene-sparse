@@ -1,7 +1,7 @@
 from unittest import TestCase
 import dictionary_utils as du
-from lookupCategory import in_xor_out_door
-from lookupCategory import natural_xor_man_made
+from create_SUN_category_dictionary import in_xor_out_door
+from create_SUN_category_dictionary import natural_xor_man_made
 
 __author__ = 'shiry'
 
