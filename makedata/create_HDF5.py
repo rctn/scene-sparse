@@ -33,7 +33,7 @@ if __name__ == "__main__":
         description='Convert the image data hierarchy into an HDF5 file with pytables Group hierarchy and save it.')
     parser.add_argument('data_dir', type=str, help='the input data directory containing the image vectors')
     parser.add_argument('--output_filename', dest='output_filename', type=str,
-                        help='the output HDF5 filename -- should be of the form X.h5', default='places32.h5')
+                        help='the output HDF5 filename -- should be of the form X.h5', default='/clusterfs/cortex/scratch/shiry/places32.h5')
     parser.add_argument('--image_vector_varname', dest='image_vector_varname', type=str,
                         help='the name of the vector variable in each image-vector mat file', default='I_tiny')
     args = parser.parse_args()

@@ -27,11 +27,17 @@ for i = 1:length(letter_directories)
        	images = dir([current_path '/*' image_format]);
         for j = 1:length(images)
             current_image = images(j).name;
-            I = imread([current_path current_image]);
+            I = im2double(imread([current_path current_image]));
             I_tiny = imresizecrop(I, [N N]);
-            imwrite(I_tiny, [current_write_path '/' current_image]);
+            %imwrite(I_tiny, [current_write_path '/' current_image]);
+			[~,~,color_channels] = size(I_tiny);
+			if color_channels > 1
+				I_tiny = rgb2gray(I_tiny);
+			end
+			I_tiny = I_tiny(:);
+			% lets save it not as an image but as a vector or the grayscale values 
+			save([current_write_path '/' current_image '.mat'], 'I_tiny');
 		end
     end
 end
 end
-
