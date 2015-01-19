@@ -1,6 +1,8 @@
 function [] = tinify_images(img_dir, results_dir, N, image_format)
 %Usage: for tiny images N = 32;
 
+N = str2num(N);
+
 % list all letter directories
 letter_directories = dir(img_dir);
 % for each letter directory
@@ -28,12 +30,12 @@ for i = 1:length(letter_directories)
         for j = 1:length(images)
             current_image = images(j).name;
             I = im2double(imread([current_path current_image]));
+			[~,~,color_channels] = size(I);
+			if color_channels > 1
+				I = rgb2gray(I);
+			end
             I_tiny = imresizecrop(I, [N N]);
             %imwrite(I_tiny, [current_write_path '/' current_image]);
-			[~,~,color_channels] = size(I_tiny);
-			if color_channels > 1
-				I_tiny = rgb2gray(I_tiny);
-			end
 			I_tiny = I_tiny(:);
 			% lets save it not as an image but as a vector or the grayscale values 
 			save([current_write_path '/' current_image '.mat'], 'I_tiny');

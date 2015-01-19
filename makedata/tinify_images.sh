@@ -14,11 +14,10 @@ cd $HOME/scene-sparse/makedata
 module load matlab/R2013a
 
 img_dir='/clusterfs/cortex/scratch/shiry/places256/'
-#result_dir='/clusterfs/cortex/scratch/shiry/places32/'
 result_dir='/clusterfs/cortex/scratch/shiry/places32_grayscale_vectors/'
 img_sz=32
 img_format='.jpg'
 
 echo "Going to tinify images"
-matlab -nodesktop -nosplash -r "tinify_images $img_dir $result_dir $img_sz $img_format; exit"
+matlab -nodesktop -nosplash -r "tinify_images($img_dir,$result_dir,$img_sz,$img_format); exit"
 echo "Finished to tinify images"

@@ -12,6 +12,8 @@ def save_hdf5(data_dir, output_filename, image_vector_varname):
     if not data_dir.endswith('/'):
         data_dir += '/'
 
+    filters = tables.Filters(complevel=5, complib='zlib')
+
     for (dirpath, dirnames, filenames) in os.walk(data_dir):
         # get rid of the input data_dir in the HDF5 path
         group_path = dirpath[len(data_dir)-1:]
@@ -20,10 +22,11 @@ def save_hdf5(data_dir, output_filename, image_vector_varname):
             fh.create_group(group_path, dirname)
         # create a pytable Leaf (equivalent to a file) of type Array for each image data file in the hierarchy
         for filename in filenames:
+            print(filename)
             # read the current image's mat file into a numpy array
             image_array = scipy.io.loadmat(os.path.join(dirpath, filename), squeeze_me=True)[image_vector_varname]
             # stick the data in a compression-enabled array
-            fh.create_carray(group_path, filename.split('.')[0], obj=image_array)
+            fh.create_carray(group_path, filename.split('.')[0], obj=image_array, filters=filters)
     fh.flush()
     fh.close()
 
