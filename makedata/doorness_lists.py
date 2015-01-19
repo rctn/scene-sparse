@@ -22,7 +22,7 @@ if __name__ == "__main__":
     # load the dictionary that associates each category with an "indoor" vs "outdoor" specification
     # but filter it so it only includes categories that are not double-marked as both indoor and outdoor
     # and return the lists of the indoor vs the outdoor categories
-    (indoor_list, outdoor_list) = get_doorness_lists(du.load_dictionary('SUN908_inoutdoor_dictionary'))
+    (indoor_list, outdoor_list) = get_doorness_lists(du.load_dictionary('   SUN908_inoutdoor_dictionary'))
 
     # get the list of images for each "doorness" condition.
 
@@ -35,6 +35,10 @@ if __name__ == "__main__":
     t = time.time()
     indoor_file_list = []
     for category in indoor_list:
+        try:
+            h.root._f_get_child(category)
+        except tables.NoSuchNodeError:
+            continue
         indoor_file_list.append([node._v_pathname for node in h.root._f_get_child(category)._f_list_nodes()])
     print(time.time() - t)
 
