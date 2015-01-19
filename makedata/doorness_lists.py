@@ -22,7 +22,7 @@ if __name__ == "__main__":
     # load the dictionary that associates each category with an "indoor" vs "outdoor" specification
     # but filter it so it only includes categories that are not double-marked as both indoor and outdoor
     # and return the lists of the indoor vs the outdoor categories
-    (indoor_list, outdoor_list) = get_doorness_lists(du.load_dictionary('   SUN908_inoutdoor_dictionary'))
+    (indoor_list, outdoor_list) = get_doorness_lists(du.load_dictionary('SUN908_inoutdoor_dictionary'))
 
     # get the list of images for each "doorness" condition.
 
