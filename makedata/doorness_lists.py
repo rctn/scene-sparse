@@ -52,6 +52,9 @@ if __name__ == "__main__":
     print(time.time() - t)
     #shuffle(outdoor_file_list)
 
+    h.close()
+    print(len(indoor_file_list))
+
     # to get the image-data from the hdf5 file:
     #h.root._f_get_child(indoor_file_list[0])[:]
 
