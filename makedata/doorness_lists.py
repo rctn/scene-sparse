@@ -18,6 +18,13 @@ def get_doorness_lists(d):
     out_list = [k for (k,v) in get_pure_doorness_categories(d).items() if not v['indoor']]
     return in_list, out_list
 
+
+def save_list(lst, filename):
+    f = open(filename, "w")
+    f.write("content = " + str(lst))
+    f.close()
+
+
 if __name__ == "__main__":
     # load the dictionary that associates each category with an "indoor" vs "outdoor" specification
     # but filter it so it only includes categories that are not double-marked as both indoor and outdoor
@@ -32,28 +39,35 @@ if __name__ == "__main__":
     # h.root.a.abbey.<IMAGE NAME>[:]
 
 
-    t = time.time()
+    #t = time.time()
     indoor_file_list = []
     for category in indoor_list:
         try:
             h.root._f_get_child(category)
         except tables.NoSuchNodeError:
             continue
-        indoor_file_list.append([node._v_pathname for node in h.root._f_get_child(category)._f_list_nodes()])
-    print(time.time() - t)
+        indoor_file_list.extend([node._v_pathname for node in h.root._f_get_child(category)._f_list_nodes()])
+    #print(time.time() - t)
 
-    #outdoor_file_list = []
-    #for category in outdoor_list:
-    #    outdoor_file_list.append([node._v_pathname for node in h.root._f_get_child(category)._f_list_nodes()])
+    outdoor_file_list = []
+    for category in outdoor_list:
+        try:
+            h.root._f_get_child(category)
+        except tables.NoSuchNodeError:
+            continue
+        outdoor_file_list.extend([node._v_pathname for node in h.root._f_get_child(category)._f_list_nodes()])
 
     # shuffle the lists to get a random walk over the images in each category
     seed(1);
     shuffle(indoor_file_list)
-    print(time.time() - t)
-    #shuffle(outdoor_file_list)
+    #print(time.time() - t)
+    shuffle(outdoor_file_list)
 
     h.close()
-    print(len(indoor_file_list))
+    #print(len(indoor_file_list))
+    save_list(indoor_file_list,'indoor_file_list.py')
+    save_list(outdoor_file_list,'outdoor_file_list.py')
+
 
     # to get the image-data from the hdf5 file:
     #h.root._f_get_child(indoor_file_list[0])[:]
