@@ -7,7 +7,7 @@ end
 
 contents = dir(img_dir);
 for i = 1:length(contents)
-    item_name = contents(i).name
+    item_name = contents(i).name;
     if(~isempty(strmatch('.',item_name)) || ~isempty(strmatch('..',item_name)))
 		continue;
 	end

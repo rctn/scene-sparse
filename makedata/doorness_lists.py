@@ -4,6 +4,7 @@ from create_SUN_category_dictionary import in_xor_out_door
 import tables
 import time
 from random import seed, shuffle
+import sys
 
 
 def get_pure_doorness_categories(d):
@@ -24,53 +25,50 @@ def save_list(lst, filename):
     f.write("content = " + str(lst))
     f.close()
 
+def file_list_for_categories(categories, h5_handle):
+    file_list = []
+    for category in categories:
+        try:
+            h5_handle.root._f_get_child(category)
+        except tables.NoSuchNodeError:
+            continue
+        catGroup = h5_handle.root._f_get_child(category)
+        for node in catGroup._v_children.iterkeys():
+            file_list.append(catGroup._v_pathname + "/" + node)
+    return file_list
 
 if __name__ == "__main__":
     # load the dictionary that associates each category with an "indoor" vs "outdoor" specification
     # but filter it so it only includes categories that are not double-marked as both indoor and outdoor
     # and return the lists of the indoor vs the outdoor categories
     (indoor_list, outdoor_list) = get_doorness_lists(du.load_dictionary('SUN908_inoutdoor_dictionary'))
-
     # get the list of images for each "doorness" condition.
 
     # load the HDF5 file that was created using the pytables library
-    h = tables.open_file('/clusterfs/cortex/scratch/shiry/places32_filters.h5', 'r')
-    # every array corresponding to one image can be accessed like so:
-    # h.root.a.abbey.<IMAGE NAME>[:]
+    # TODO put this back?
+    with tables.open_file('/clusterfs/cortex/scratch/shiry/places32.h5', 'r') as h:
+        # every array corresponding to one image can be accessed like so:
+        # h.root.a.abbey.<IMAGE NAME>[:]
 
+        seed(1);
+        #t = time.time()
+        file_list = file_list_for_categories(outdoor_list, h)
 
-    #t = time.time()
-    indoor_file_list = []
-    for category in indoor_list:
-        try:
-            h.root._f_get_child(category)
-        except tables.NoSuchNodeError:
-            continue
-        indoor_file_list.extend([node._v_pathname for node in h.root._f_get_child(category)._f_list_nodes()])
-    #print(time.time() - t)
+        #print(time.time() - t)
+        shuffle(file_list)
 
-    outdoor_file_list = []
-    for category in outdoor_list:
-        try:
-            h.root._f_get_child(category)
-        except tables.NoSuchNodeError:
-            continue
-        outdoor_file_list.extend([node._v_pathname for node in h.root._f_get_child(category)._f_list_nodes()])
+        #print(len(file_list))
+        save_list(file_list,'outdoor_file_list.py')
+    
+        file_list = file_list_for_categories(indoor_list, h)
 
-    # shuffle the lists to get a random walk over the images in each category
-    seed(1);
-    shuffle(indoor_file_list)
-    #print(time.time() - t)
-    shuffle(outdoor_file_list)
-
-    h.close()
-    #print(len(indoor_file_list))
-    save_list(indoor_file_list,'indoor_file_list.py')
-    save_list(outdoor_file_list,'outdoor_file_list.py')
-
-
-    # to get the image-data from the hdf5 file:
-    #h.root._f_get_child(indoor_file_list[0])[:]
+        #print(time.time() - t)
+        # shuffle the lists to get a random walk over the images in each category
+        shuffle(file_list)
+        save_list(file_list,'indoor_file_list.py')
+	
+	    # to get the image-data from the hdf5 file:
+        #h.root._f_get_child(indoor_file_list[0])[:]
 
 
 
