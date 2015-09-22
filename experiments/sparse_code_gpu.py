@@ -99,6 +99,8 @@ class LBFGS_SC:
     def load_data(self,data):
         print('The norm of the data is ', np.mean(np.linalg.norm(data,axis=0)))
         #Update self.data to have new data
+        data_norm = np.linalg.norm(data,axis=0)
+        data = data/data_norm[np.newaxis,:]
         self.data.set_value(data.astype('float32'))
         return
    
@@ -131,10 +133,12 @@ class LBFGS_SC:
         #Now setting the previous basis to this time around
         #Computing Average Residual
         tmp = Residual**2
-        tmp = 0.5*tmp.sum(axis=0)
-        Residual = tmp.mean()
+        tmp = 0.5*tmp.sum()
+        Residual = tmp
         #Computing how much coefficients are "on"
-        num_on = T.abs_(self.coeff).sum().astype('float32')/float(self.basis_no*self.batch)
+        #num_on = T.abs_(self.coeff).sum().astype('float32')/float(self.basis_no*self.batch)
+        #Computing sparisty contributions to energy function
+        num_on = T.abs_(self.coeff).sum().astype('float32')
         f = theano.function([],[Residual.astype('float32'),num_on,basis], updates=updates)
         return f 
 

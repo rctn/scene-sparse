@@ -69,7 +69,7 @@ if __name__ == "__main__":
     patch_dim = 64
     print('Could not get file handle. Aborting')
     #Inference Variables
-    LR = 1e-1 
+    LR = 1e-0 
     training_iter = 10000 
     lam = 1e-1 
     err_eps = 1e-3
@@ -107,8 +107,9 @@ if __name__ == "__main__":
     for ii in np.arange(training_iter):
         tm1 = time.time()
         print('Loading new Data')
-        imi = np.ceil(num_images * random.uniform(0, 1))
         for i in range(batch):
+          #Moving the image choosing inside the loop, so we get more randomness in image choice
+          imi = np.ceil(num_images * random.uniform(0, 1))
           r = border + np.ceil((imsize-sz-2*border) * random.uniform(0, 1))
           c = border + np.ceil((imsize-sz-2*border) * random.uniform(0, 1))
           data[:,i] = np.reshape(IMAGES[r:r+sz, c:c+sz, imi-1], patch_dim, 1)
