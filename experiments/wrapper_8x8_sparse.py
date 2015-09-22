@@ -69,7 +69,7 @@ if __name__ == "__main__":
     patch_dim = 64
     print('Could not get file handle. Aborting')
     #Inference Variables
-    LR = 1e-0 
+    LR = 1e-1 
     training_iter = 10000 
     lam = 1e-1 
     err_eps = 1e-3

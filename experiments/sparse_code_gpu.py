@@ -113,17 +113,18 @@ class LBFGS_SC:
         #Update basis with the right update steps
         Residual = self.data - self.basis.dot(self.coeff)
         #Gradient
-        dbasis = self.LR * Residual.dot(self.coeff.T)
-        #Now also adding momentum by using 50% of the un-normalized gradient from the last time
-        #mom_update = .5*self.basis_prev_grad + dbasis
-        #basis = self.basis + mom_update
-        basis = self.basis + dbasis
+        dbasis = Residual.dot(self.coeff.T)
+        norm_grad_basis = dbasis**2
+        norm_grad_basis = norm_grad_basis.sum(axis=0)
+        norm_grad_basis = T.sqrt(norm_grad_basis)
+        dbasis = dbasis/norm_grad_basis.dimshuffle('x',0)
+        
+        basis = self.basis + self.LR*dbasis
         #Normalize basis
         norm_basis = basis**2
         norm_basis = norm_basis.sum(axis=0)
         norm_basis = T.sqrt(norm_basis)
-        norm_basis = T.nlinalg.diag(1.0/norm_basis)
-        basis = basis.dot(norm_basis)
+        basis = basis/norm_basis.dimshuffle('x',0)
         #Now updating reconstructions
         recon = self.basis.dot(self.coeff)
         updates = {self.basis: basis.astype('float32'),
