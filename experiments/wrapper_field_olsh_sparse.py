@@ -66,14 +66,14 @@ if __name__ == "__main__":
     data_dict = scio.loadmat(proj_path+'IMAGES.mat')
     IMAGES = data_dict['IMAGES']
     (imsize, imsize,num_images) = np.shape(IMAGES)
-    patch_dim = 64
     print('Could not get file handle. Aborting')
     #Inference Variables
     LR = 1e-1 
     training_iter = 10000 
     lam = 1e-1 
     err_eps = 1e-3
-    orig_patchdim = 8
+    orig_patchdim = 32
+    patch_dim = orig_patchdim**2
     patchdim = np.asarray([0,0])
     patchdim[0] = orig_patchdim 
     patchdim[1] = orig_patchdim
@@ -81,9 +81,9 @@ if __name__ == "__main__":
     print('patchdim is ---',patchdim)
     batch = 200 
     data = np.zeros((orig_patchdim**2,batch))
-    basis_no = 256
+    basis_no = 1*(orig_patchdim**2)
     border = 4
-    matfile_write_path = write_path+'IMAGES_8x8__LR_'+str(LR)+'_batch_'+str(batch)+'_basis_no_'+str(basis_no)+'_lam_'+str(lam)+'_basis'
+    matfile_write_path = write_path+'IMAGES_' + str(orig_patchdim) + 'x' + str(orig_patchdim) + '__LR_'+str(LR)+'_batch_'+str(batch)+'_basis_no_'+str(basis_no)+'_lam_'+str(lam)+'_basis'
 
     #Making and Changing directory
     try:
