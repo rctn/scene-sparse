@@ -96,7 +96,7 @@ if __name__ == "__main__":
     #Inference Variables
     LR = 1e-1 
     training_iter = 10000 
-    lam = 1e-2 
+    lam = 1e-1 
     err_eps = 1e-3
     orig_patchdim = 32 
     patchdim = np.asarray([0,0])
@@ -104,7 +104,7 @@ if __name__ == "__main__":
     patchdim[1] = orig_patchdim
     print('patchdim is ---',patchdim)
     batch = 200 
-    basis_no = 1024 
+    basis_no =1*(orig_patchdim**2)
     matfile_write_path = write_path+'outdoor_LR_'+str(LR)+'_batch_'+str(batch)+'_basis_no_'+str(basis_no)+'_lam_'+str(lam)+'_basis'
 
     #Making and Changing directory
@@ -182,7 +182,7 @@ if __name__ == "__main__":
             }
             scio.savemat('basis',scene_basis)
             print('Saving basis visualizations now')
-            lbfgs_sc.visualize_basis(ii,[32*2,32*2])
+            lbfgs_sc.visualize_basis(ii,[orig_patchdim,orig_patchdim])
             print('Saving data visualizations now')
             visualize_data(data,ii,patchdim,[20,10])
             print('Saving SNR')
