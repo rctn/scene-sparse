@@ -9,12 +9,14 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 import os
 import utilities
+from collections import OrderedDict
+from scipy.linalg import eigh
 #FISTA updates
 ##Courtesy Alexander G Anderson, 2015
 
 class LBFGS_SC:
 
-    def __init__(self,savepath=None,LR=None,lam=None,batch=None,basis_no=None,patchdim=None):
+    def __init__(self,savepath=None,LR=None,lam=None,batch=None,basis_no=None,patchdim=None,N_g_itr=None):
         if LR is None:
             self.LR = 0.1
         else:
@@ -39,22 +41,30 @@ class LBFGS_SC:
             self.savepath = os.getcwd() 
         else:
             self.savepath = savepath
+        if N_g_itr is None:
+            self.N_g_itr = 200 
+        else:
+            self.N_g_itr = N_g_itr
         self.data = np.random.randn(self.patchdim[0]*self.patchdim[1],self.batch).astype('float32')
         self.coeff = np.random.randn(self.basis_no,self.batch).astype('float32') 
-        self.coeff_prev_grad = np.zeros(self.coeff.shape).astype('float32')
+        #self.coeff_prev_grad = np.zeros(self.coeff.shape).astype('float32')
         self.basis = np.random.randn(self.patchdim[0]*self.patchdim[1],self.basis_no).astype('float32')
         #self.basis_prev_grad = np.zeros(self.basis.shape).astype('float32') 
         self.coeff = theano.shared(self.coeff)
         self.data = theano.shared(self.data)
         self.basis = theano.shared(self.basis)
         #self.basis_prev_grad = theano.shared(self.basis_prev_grad)
-        self.coeff_prev_grad = theano.shared(self.coeff_prev_grad)
+        #self.coeff_prev_grad = theano.shared(self.coeff_prev_grad)
         self.recon = theano.shared(0.0*self.data.get_value())
         self.t_T = theano.shared(np.array([1.]).astype(theano.config.floatX), 'fista_T')
-        self.t_X = theano.shared(np.zeros(self.coeff.shape).astype(
+        self.t_X = theano.shared(np.zeros((self.basis_no,self.batch)).astype(theano.config.floatX), 'fista_X')
+        #Calling Fista Initialization
+        self.L = theano.shared(np.array(1.0).astype(theano.config.floatX),'fista_L')
+        self.fista_init()
+        self.N_g_itr = np.ones(1)*200
         print('Compiling theano inference function')
         #self.infer_coeff_gd = self.create_infer_coeff_gd()
-        self.f = self.create_coeff_fn()
+        #self.f = self.create_coeff_fn()
         print('Compiling theano basis function') 
         self.update_basis = self.create_update_basis()
         return 
@@ -91,22 +101,23 @@ class LBFGS_SC:
         #This calls the fista_update function and creates a function handle
         #fist_updates = fista_updates()
         #_, t_fista_X, t_T = fist_updates.keys()
-
-        fista_step = theano.function(inputs = [],
+        self.fista_step = theano.function(inputs = [],
                                      #outputs = [t_E, t_E_rec, t_E_sp, t_SNR], #These need to be coded up
                                      outputs = [],
-                                     updates = self.fista_updates)
+                                     updates = self.fista_updates())
     def calculate_fista_L(self):
         """
         Calculates the 'L' constant for FISTA for the dictionary in t_D.get_value()
         Code adapted from: Alexander G Anderson
         """
         D = self.basis.get_value()
+        #Switching the order of D D^{T} solely based on my understanding of how D is setup in Alex' code
         try:
-            L = (2 * eigh(np.dot(D, D.T), eigvals_only=True, eigvals=(N_sp-1,N_sp-1))[0]).astype('float32')
+            L = (2 * eigh(np.dot(D.T, D), eigvals_only=True, eigvals=(self.basis_no-1,self.basis_no-1))[0]).astype('float32')
         except ValueError:
-            L = (2 * D_std ** 2 * N_sp).astype('float32') # Upper bound on largest eigenvalue
-        return L
+            L = (2 * np.std(self.data.get_value())** 2 * self.basis_no).astype('float32') # Upper bound on largest eigenvalue
+        self.L.set_value(np.array(L))
+        return 1
 
     def reset_fista_variables(self):
         """
@@ -115,9 +126,18 @@ class LBFGS_SC:
         """
         A0 = np.zeros_like(self.coeff.get_value()).astype(theano.config.floatX)
         self.coeff.set_value(A0)
-        self_t_X.set_value(A0)
+        self.t_X.set_value(A0)
         self.t_T.set_value(np.array([1.]).astype(theano.config.floatX))
         return 1
+
+    def threshold(self,t_X,pos_only=False):
+        """
+        Threshold function
+        """
+        if pos_only == True:
+            return T.switch(t_X > 0., t_X, 0.)
+        else:
+            return t_X
 
     def fista_updates(self, pos_only=False):
         """
@@ -136,25 +156,18 @@ class LBFGS_SC:
         Code adapted from: Alexander G Anderson, 2015
         """
 
-        def threshold(t_X):
-            """
-            Threshold function
-            """
-            if pos_only = True:
-                return T.switch(t_X > 0., t_X, 0.)
-            else:
-                return t_X
-
-        t_E_rec = (self.data - self.basis.dot(self.coeff))**2
-        t_E_sp = self.lam * T.abs_(coeff).sum(axis=0).mean()
+        t_E_rec = T.sum((self.data - self.basis.dot(self.coeff))**2)
+        t_E_rec.name = 't_E_rec'
+        t_E_sp = self.lam * T.abs_(self.coeff).sum(axis=0).mean()
+        t_E_sp.name = 't_E_sp'
         t_E = t_E_rec + t_E_sp
         #t_E_rec needs to be coded up here, since we don't actually have that variable anywhere
         t_B = self.coeff - (1. / self.L) * T.grad(t_E_rec, self.coeff)
-        t_C = T.abs_(t_B) - self.lam / t_L
-        t_A_ista = T.switch(t_B > 0, 1., -1.) * threshold(t_C)
+        t_C = T.abs_(t_B) - self.lam / self.L
+        t_A_ista = T.switch(t_B > 0, 1., -1.) * self.threshold(t_C)
 
         if pos_only:
-            t_A_ista = threshold(t_A_ista)
+            t_A_ista = self.threshold(t_A_ista)
         t_A_ista.name = 'A_ista'
 
         t_T = theano.shared(np.array([1.]).astype(theano.config.floatX), 'fista_T')
@@ -189,15 +202,17 @@ class LBFGS_SC:
             print 'Iteration, E, E_rec, E_sp, SNR'
         self.reset_fista_variables()
         self.calculate_fista_L()
-        for _ in range(N_g_itr):
-            E, E_rec, E_sp, SNR = self.fista_step( )
+        for _ in range(self.N_g_itr):
+            #E, E_rec, E_sp, SNR = self.fista_step( )
+            self.fista_step( )
+        '''
         #dictionary_learning_step(Alpha, Eta, D_std, I_idx)
-        # 
         #E, E_rec, E_sp, SNR = costs(I_idx, Alpha)
         cost_list.append(E)
         if ((i + 1) % (1 + N_itr / 10) == 0) and show_costs:
             print i, E, E_rec, E_sp, SNR
-        return I_idx
+        '''
+        return 
 
 
     def create_infer_coeff_gd(self):
@@ -309,11 +324,13 @@ class LBFGS_SC:
         plt.savefig('mean_coeff'+savepath_image)
         plt.close()
         #Plotting Histograms
+        '''
         plt.hist(mean_coeff.flatten(),50)
         plt.xlabel('Bin Values')
         plt.ylabel('Counts of firing rates')
         plt.savefig('hist'+savepath_image)
         plt.close()
+        '''
         return
 
 

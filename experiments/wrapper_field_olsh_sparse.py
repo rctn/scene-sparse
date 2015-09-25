@@ -72,7 +72,7 @@ if __name__ == "__main__":
     training_iter = 10000 
     lam = 1e-1 
     err_eps = 1e-3
-    orig_patchdim = 32
+    orig_patchdim = 8 
     patch_dim = orig_patchdim**2
     patchdim = np.asarray([0,0])
     patchdim[0] = orig_patchdim 
@@ -81,7 +81,7 @@ if __name__ == "__main__":
     print('patchdim is ---',patchdim)
     batch = 200 
     data = np.zeros((orig_patchdim**2,batch))
-    basis_no = 1*(orig_patchdim**2)
+    basis_no = 4*(orig_patchdim**2)
     border = 4
     matfile_write_path = write_path+'IMAGES_' + str(orig_patchdim) + 'x' + str(orig_patchdim) + '__LR_'+str(LR)+'_batch_'+str(batch)+'_basis_no_'+str(basis_no)+'_lam_'+str(lam)+'_basis'
 
@@ -135,9 +135,7 @@ if __name__ == "__main__":
                 prev_obj = obj
             jj = jj + 1
         '''
-        active_infer,res = lbfgs_sc.infer_coeff()
-        sparsity_list.append(active_infer)
-        tm4 = time.time()
+        lbfgs_sc.infer_fista()
         residual,active,basis=lbfgs_sc.update_basis()
         residual_list.append(residual)
         tm5 = time.time()
@@ -147,13 +145,10 @@ if __name__ == "__main__":
         snr = 10*np.log10(snr)
         snr_list.append(snr)
         print('Time to load data in seconds', tm2-tm1)
-        print('Infer coefficients cost in seconds', tm4-tm3)
-        print('The value of active coefficients after we do inference ', active_infer)
         print('The value of residual after we do learning ....', residual)
         print('The SNR for the model is .........',snr)
         print('The value of active coefficients after we do learning ....',active)
         print('The mean norm of the basis is .....',np.mean(np.linalg.norm(basis,axis=0)))
-        print('Updating basis cost in seconds',tm5-tm4)
         #residual_list.append(residual)
         if np.mod(ii,10)==0:
             print('Saving the basis now, for iteration ',ii)
