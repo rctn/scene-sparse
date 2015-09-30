@@ -55,6 +55,11 @@ def visualize_data(data,iteration,patchdim,image_shape=None):
     plt.close()
     return
 
+def generate_data():
+    data = np.identity(64).astype('float32')
+    basis = np.identity(64).astype('float32')
+
+    return data,basis
 
 
 if __name__ == "__main__":
@@ -69,8 +74,8 @@ if __name__ == "__main__":
     print('Could not get file handle. Aborting')
     #Inference Variables
     LR = 1e-1 
-    training_iter = 2000 
-    lam = 1e-1
+    training_iter = 1
+    lam = 1e-2
     err_eps = 1e-3
     orig_patchdim = 8 
     patch_dim = orig_patchdim**2
@@ -79,9 +84,9 @@ if __name__ == "__main__":
     patchdim[1] = orig_patchdim
     sz = np.sqrt(patch_dim)
     print('patchdim is ---',patchdim)
-    batch = 200 
+    batch = 64 
     data = np.zeros((orig_patchdim**2,batch))
-    basis_no = 4*(orig_patchdim**2)
+    basis_no = 1*(orig_patchdim**2)
     border = 4
     matfile_write_path = write_path+'IMAGES_' + str(orig_patchdim) + 'x' + str(orig_patchdim) + '__LR_'+str(LR)+'_batch_'+str(batch)+'_basis_no_'+str(basis_no)+'_lam_'+str(lam)+'_basis'
 
@@ -100,22 +105,14 @@ if __name__ == "__main__":
         print('Unable to navigate to the folder where we want to save data dumps')
 
     #Create object
-    lbfgs_sc = sparse_code_gpu.LBFGS_SC(LR=LR,lam=lam,batch=batch,basis_no=basis_no,patchdim=patchdim,savepath=matfile_write_path)
+    data, basis = generate_data()
+    lbfgs_sc = sparse_code_gpu.LBFGS_SC(LR=LR,lam=lam,batch=batch,basis_no=basis_no,patchdim=patchdim,savepath=matfile_write_path,basis=basis)
+    SNR_I_2= lbfgs_sc.load_data(data)
     residual_list=[]
     sparsity_list=[]
     snr_list=[]
     for ii in np.arange(training_iter):
         tm1 = time.time()
-        print('Loading new Data')
-        for i in range(batch):
-          #Moving the image choosing inside the loop, so we get more randomness in image choice
-          imi = np.ceil(num_images * random.uniform(0, 1))
-          r = border + np.ceil((imsize-sz-2*border) * random.uniform(0, 1))
-          c = border + np.ceil((imsize-sz-2*border) * random.uniform(0, 1))
-          data[:,i] = np.reshape(IMAGES[r:r+sz, c:c+sz, imi-1], patch_dim, 1)
-        lbfgs_sc.load_data(data)
-        SNR_I_2 = np.var(data)
-        tm2 = time.time()
         #print('*****************Adjusting Learning Rate*******************')
         #adj_LR = adjust_LR(LR,ii)
         #lbfgs_sc.adjust_LR(adj_LR)
@@ -123,50 +120,13 @@ if __name__ == "__main__":
         #Note this way, each column is a data vector
         tm3 = time.time()
         prev_obj = 1e6 
-        jj = 0
-        ''' 
-        while True: 
-            obj,active_infer = lbfgs_sc.infer_coeff_gd()            
-            if np.mod(jj,10)==0:
-                print('Value of objective function from previous iteration of coeff update',obj)
-            if (np.abs(prev_obj - obj) < err_eps) or (jj > 100):
-                break
-            else:
-                prev_obj = obj
-            jj = jj + 1
-        '''
-        residual,active,basis=lbfgs_sc.update_basis()
+        #residual,active,basis=lbfgs_sc.update_basis()
         lbfgs_sc.infer_fista()
-        residual_list.append(residual)
-        tm5 = time.time()
         denom = lbfgs_sc.recon.get_value()
         denom_var = np.var(denom)
         snr = SNR_I_2/(denom_var)
         snr = 10*np.log10(snr)
         snr_list.append(snr)
-        print('Time to load data in seconds', tm2-tm1)
-        print('The value of residual after we do learning ....', residual)
         print('The SNR for the model is .........',snr)
-        print('The value of active coefficients after we do learning ....',active)
-        print('The mean norm of the basis is .....',np.mean(np.linalg.norm(basis,axis=0)))
+        print('The inferred coeff is ....', lbfgs_sc.coeff.get_value()[:,0])
         #residual_list.append(residual)
-        if np.mod(ii,10)==0:
-            print('Saving the basis now, for iteration ',ii)
-            scene_basis = {
-            'basis': lbfgs_sc.basis.get_value(),
-            'residuals':residual_list,
-            'sparsity':sparsity_list,
-            'snr':snr_list
-            }
-            scio.savemat('basis',scene_basis)
-            print('Saving basis visualizations now')
-            lbfgs_sc.visualize_basis(ii,[16,16])
-            print('Saving data visualizations now')
-            visualize_data(data,ii,patchdim,[16,16])
-            print('Saving SNR')
-            plot_SNR(snr_list)
-            print('Saving R_error')
-            plot_residuals(residual_list)
-            print('Average Coefficients')
-            lbfgs_sc.plot_mean_firing(ii)
-            print('Visualizations done....back to work now')
