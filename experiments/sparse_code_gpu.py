@@ -42,7 +42,7 @@ class LBFGS_SC:
         else:
             self.savepath = savepath
         if N_g_itr is None:
-            self.N_g_itr = 100 
+            self.N_g_itr = 150 
         else:
             self.N_g_itr = N_g_itr
         self.data = np.random.randn(self.patchdim[0]*self.patchdim[1],self.batch).astype('float32')
@@ -50,8 +50,9 @@ class LBFGS_SC:
         #self.coeff_prev_grad = np.zeros(self.coeff.shape).astype('float32')
         if basis is None:
             self.basis = np.random.randn(self.patchdim[0]*self.patchdim[1],self.basis_no).astype('float32')
-            self.basis = self.basis/np.linalg.norm(self.basis,axis=0)[np.newaxis,:]
+            #self.basis = self.basis/np.linalg.norm(self.basis,axis=0)[np.newaxis,:]
         else:
+            print 'Loading Basis from some place.... probably debug'
             self.basis = basis
         self.coeff = theano.shared(self.coeff)
         self.data = theano.shared(self.data)
@@ -70,7 +71,7 @@ class LBFGS_SC:
         self.fista_init()
         print('Compiling theano inference function')
         #self.infer_coeff_gd = self.create_infer_coeff_gd()
-        #self.f = self.create_coeff_fn()
+        self.f = self.create_coeff_fn()
         print('Compiling theano basis function') 
         self.update_basis = self.create_update_basis()
         return 
@@ -110,7 +111,7 @@ class LBFGS_SC:
         self.fista_step = theano.function(inputs = [],
                                      #outputs = [t_E, t_E_rec, t_E_sp, t_SNR], #These need to be coded up
                                      outputs = [self.t_E,self.t_E_rec,self.t_E_sp],
-                                     updates = self.fista_updates())
+                                     updates = self.ista_updates())
     def calculate_fista_L(self):
         """
         Calculates the 'L' constant for FISTA for the dictionary in t_D.get_value()
@@ -119,11 +120,11 @@ class LBFGS_SC:
         D = self.basis.get_value()
         #Switching the order of D D^{T} solely based on my understanding of how D is setup in Alex' code
         try:
-            L = (2 * eigvalsh(np.dot(D.T, D), eigvals=(self.basis_no-1,self.basis_no-1))).astype('float32')[0]
+            L = ( eigvalsh(np.dot(D.T, D), eigvals=(self.basis_no-1,self.basis_no-1))).astype('float32')[0]
             print L
         except ValueError:
             print 'We encountered a Value Error'
-            #L = (2 * np.std(self.basis.get_value())** 2 * self.basis_no).astype('float32') # Upper bound on largest eigenvalue
+            L = ( np.std(self.basis.get_value())** 2 * self.basis_no).astype('float32') # Upper bound on largest eigenvalue
         self.L.set_value(np.array(L))
         return 1
 
@@ -179,8 +180,8 @@ class LBFGS_SC:
         t_X1 = t_A_ista
         t_T1 = 0.5 * (1 + T.sqrt(1. + 4. * self.t_T ** 2))
         t_T1.name = 'fista_T1'
-        #t_A1 = t_X1 + (t_T1[0] - 1) / t_T[0] * (t_X1 - self.t_X)
         t_A1 = t_X1 + (self.t_T - 1) / t_T1 * (t_X1 - self.t_X)
+        #t_A1 = t_X1 + (self.t_T - 1) / t_T1 * (t_X1 - self.t_X)
         t_A1.name = 'fista_A1'
         updates = OrderedDict()
         updates[self.coeff] = t_A1
@@ -222,13 +223,13 @@ class LBFGS_SC:
         self.reset_fista_variables()
         for ii in range(self.N_g_itr):
             E, E_rec, E_sp = self.fista_step( )
-            if np.mod(ii,1)==0:
+            if np.mod(ii,99)==0:
                 print('E ',E)
                 print('E_rec',E_rec)
                 print('E_sp', E_sp)
                 print('L ', self.L.get_value())
                 print('Mean abs coeff value', self.coeff.get_value().max())
-                print('Mean abs coeff value', self.coeff.get_value()[:,0])
+                #print('Mean abs coeff value', self.coeff.get_value()[:,0])
         return 
 
 
@@ -243,9 +244,9 @@ class LBFGS_SC:
         mom_update = 0.5*inf_LR*self.coeff_prev_grad + inf_LR*grads
         #coeff_update = self.coeff - self.LR*1e-1*grads
         coeff_update = self.coeff + mom_update
-        updates = {self.coeff:coeff_update.astype('float32'),
-                self.coeff_prev_grad:mom_update.astype('float32'),
-                }
+        updates = OrderedDict()
+        updates[self.coeff] = coeff_update.astype('float32')
+        updates[self.coeff_prev_grad] = mom_update.astype('float32')
         active = T.abs_(coeff_update).sum().astype('float32')/float(self.basis_no*self.batch)
         f = theano.function([],[obj.astype('float64'),active.astype('float64')],updates=updates)
         return f
@@ -267,13 +268,12 @@ class LBFGS_SC:
 
     def create_update_basis(self):
         #Update basis with the right update steps
-        Residual = self.data - self.basis.dot(self.coeff)
         #Gradient
-        dbasis = Residual.dot(self.coeff.T)
+        dbasis = T.grad(self.t_E_rec,self.basis)
         norm_grad_basis = dbasis**2
         norm_grad_basis = norm_grad_basis.sum(axis=0)
         norm_grad_basis = T.sqrt(norm_grad_basis)
-        dbasis = dbasis/norm_grad_basis.dimshuffle('x',0)
+        dbasis = dbasis/T.maximum(norm_grad_basis.dimshuffle('x',0),1e-1)
         
         basis = self.basis + self.LR*dbasis
         #Normalize basis
@@ -283,27 +283,24 @@ class LBFGS_SC:
         basis = basis/norm_basis.dimshuffle('x',0)
         #Now updating reconstructions
         recon = self.basis.dot(self.coeff)
-        import IPython; IPython.embed()
-        updates = {self.basis: basis.astype('float32'),
-                   self.recon:recon.astype('float32'),
-                  }
+        updates = OrderedDict()
+        updates[self.basis]= basis.astype('float32')
+        updates[self.recon]= recon.astype('float32')
         #Now setting the previous basis to this time around
         #Computing Average Residual
-        tmp = Residual**2
+        tmp = (self.data - self.basis.dot(self.coeff))**2
         tmp = 0.5*tmp.sum(axis=0).mean()
         Residual = tmp
         #Computing how much coefficients are "on"
-        #num_on = T.abs_(self.coeff).sum().astype('float32')/float(self.basis_no*self.batch)
-        #Computing sparisty contributions to energy function
         #num_on = T.abs_(self.coeff).sum().astype('float32')
         num_on = T.switch(T.abs_(self.coeff)>0,1,0).sum(axis=0).mean()
-        f = theano.function([],[Residual.astype('float32'),num_on,basis], updates=updates)
+        f = theano.function([],[Residual.astype('float32'),num_on,basis,self.t_E], updates=updates)
         return f 
 
     def visualize_basis(self,iteration,image_shape=None):
         #Use function we wrote previously
         tmp = self.basis.get_value()
-        out_image = utilities.tile_raster_images(tmp.T,self.patchdim,image_shape)
+        out_image = utilities.tile_raster_images(tmp.T,self.patchdim,image_shape,tile_spacing = (1,1))
         plt.imshow(out_image,cmap=cm.Greys_r)
         savepath_image= 'vis_basis'+ '_iterations_' + str(iteration) + '.png'
         plt.savefig(savepath_image)
@@ -335,7 +332,7 @@ class LBFGS_SC:
     def plot_mean_firing(self,iteration):
         #Plot mean firing
         mean_coeff = self.coeff.get_value()
-        tmp = mean_coeff.mean(axis=1)
+        tmp = np.abs(mean_coeff).mean(axis=1)
         plt.plot(tmp)
         plt.xlabel('basis number')
         plt.ylabel('mean activation across 200 samples')

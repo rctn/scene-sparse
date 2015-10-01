@@ -128,5 +128,5 @@ if __name__ == "__main__":
         snr = 10*np.log10(snr)
         snr_list.append(snr)
         print('The SNR for the model is .........',snr)
-        print('The inferred coeff is ....', lbfgs_sc.coeff.get_value()[:,0])
+        print('The inferred coeff is ....', lbfgs_sc.coeff.get_value())
         #residual_list.append(residual)

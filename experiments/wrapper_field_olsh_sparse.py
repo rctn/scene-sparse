@@ -23,7 +23,7 @@ import random
 import utilities
 
 def adjust_LR(LR, iterations):
-    T = 2000
+    T = 200
     scale = 1.0/(1.0 + (iterations/T))
     new_LR = scale* LR
     print('.......................New Learning Rate is........................',new_LR)
@@ -43,6 +43,14 @@ def plot_SNR(SNR):
     plt.xlabel('iterations')
     plt.ylabel('(SNR) ')
     plt.savefig('SNR.png')
+    plt.close()
+    return
+
+def plot_Energy(Energy):
+    plt.plot(Energy[1:])
+    plt.xlabel('iterations')
+    plt.ylabel('(Energy) ')
+    plt.savefig('Energy.png')
     plt.close()
     return
 
@@ -68,9 +76,9 @@ if __name__ == "__main__":
     (imsize, imsize,num_images) = np.shape(IMAGES)
     print('Could not get file handle. Aborting')
     #Inference Variables
-    LR = 1e-1 
+    LR = 1e-2 
     training_iter = 2000 
-    lam = 1e-1
+    lam = 5e-2 
     err_eps = 1e-3
     orig_patchdim = 8 
     patch_dim = orig_patchdim**2
@@ -103,6 +111,7 @@ if __name__ == "__main__":
     lbfgs_sc = sparse_code_gpu.LBFGS_SC(LR=LR,lam=lam,batch=batch,basis_no=basis_no,patchdim=patchdim,savepath=matfile_write_path)
     residual_list=[]
     sparsity_list=[]
+    energy_list = []
     snr_list=[]
     for ii in np.arange(training_iter):
         tm1 = time.time()
@@ -113,12 +122,11 @@ if __name__ == "__main__":
           r = border + np.ceil((imsize-sz-2*border) * random.uniform(0, 1))
           c = border + np.ceil((imsize-sz-2*border) * random.uniform(0, 1))
           data[:,i] = np.reshape(IMAGES[r:r+sz, c:c+sz, imi-1], patch_dim, 1)
-        lbfgs_sc.load_data(data)
-        SNR_I_2 = np.var(data)
+        SNR_I_2 = lbfgs_sc.load_data(data)
         tm2 = time.time()
-        #print('*****************Adjusting Learning Rate*******************')
-        #adj_LR = adjust_LR(LR,ii)
-        #lbfgs_sc.adjust_LR(adj_LR)
+        print('*****************Adjusting Learning Rate*******************')
+        adj_LR = adjust_LR(LR,ii)
+        lbfgs_sc.adjust_LR(adj_LR)
         print('Training iteration -- ',ii)
         #Note this way, each column is a data vector
         tm3 = time.time()
@@ -135,9 +143,10 @@ if __name__ == "__main__":
                 prev_obj = obj
             jj = jj + 1
         '''
-        residual,active,basis=lbfgs_sc.update_basis()
+        residual,active,basis,energy=lbfgs_sc.update_basis()
         lbfgs_sc.infer_fista()
         residual_list.append(residual)
+        energy_list.append(energy)
         tm5 = time.time()
         denom = lbfgs_sc.recon.get_value()
         denom_var = np.var(denom)
@@ -165,6 +174,8 @@ if __name__ == "__main__":
             visualize_data(data,ii,patchdim,[16,16])
             print('Saving SNR')
             plot_SNR(snr_list)
+            print('Saving Energy')
+            plot_Energy(energy_list)
             print('Saving R_error')
             plot_residuals(residual_list)
             print('Average Coefficients')
