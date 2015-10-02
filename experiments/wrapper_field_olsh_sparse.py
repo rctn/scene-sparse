@@ -76,7 +76,7 @@ if __name__ == "__main__":
     (imsize, imsize,num_images) = np.shape(IMAGES)
     print('Could not get file handle. Aborting')
     #Inference Variables
-    LR = 1e-2 
+    LR = 5e-2 
     training_iter = 2000 
     lam = 5e-2 
     err_eps = 1e-3
@@ -143,8 +143,9 @@ if __name__ == "__main__":
                 prev_obj = obj
             jj = jj + 1
         '''
-        residual,active,basis,energy=lbfgs_sc.update_basis()
         lbfgs_sc.infer_fista()
+        residual,active,basis,energy=lbfgs_sc.update_basis()
+        #lbfgs_sc.infer_coeff()
         residual_list.append(residual)
         energy_list.append(energy)
         tm5 = time.time()

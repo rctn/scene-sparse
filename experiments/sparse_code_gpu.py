@@ -58,6 +58,7 @@ class LBFGS_SC:
         self.data = theano.shared(self.data)
         self.basis = theano.shared(self.basis)
         self.recon = theano.shared(0.0*self.data.get_value())
+        self.LR = theano.shared(self.LR)
         self.t_E_rec = 0.5*T.sum((self.data - self.basis.dot(self.coeff))**2)
         self.t_E_rec.name = 't_E_rec'
         self.t_E_sp = self.lam * T.abs_(self.coeff).sum()
@@ -111,7 +112,7 @@ class LBFGS_SC:
         self.fista_step = theano.function(inputs = [],
                                      #outputs = [t_E, t_E_rec, t_E_sp, t_SNR], #These need to be coded up
                                      outputs = [self.t_E,self.t_E_rec,self.t_E_sp],
-                                     updates = self.ista_updates())
+                                     updates = self.fista_updates())
     def calculate_fista_L(self):
         """
         Calculates the 'L' constant for FISTA for the dictionary in t_D.get_value()
@@ -125,7 +126,7 @@ class LBFGS_SC:
         except ValueError:
             print 'We encountered a Value Error'
             L = ( np.std(self.basis.get_value())** 2 * self.basis_no).astype('float32') # Upper bound on largest eigenvalue
-        self.L.set_value(np.array(L))
+        self.L.set_value(np.array(L).astype('float32'))
         return 1
 
     def reset_fista_variables(self):
@@ -164,7 +165,7 @@ class LBFGS_SC:
 
         t_B = self.coeff - (1. / self.L) * T.grad(self.t_E_rec, self.coeff)
         t_C = T.abs_(t_B) - self.lam / self.L
-        t_A_ista = T.switch(t_B > 0, 1., -1.) * self.threshold(t_C)
+        t_A_ista = T.sgn(t_B) * self.threshold(t_C)
 
         if pos_only:
             t_A_ista = self.threshold(t_A_ista)
@@ -181,7 +182,7 @@ class LBFGS_SC:
         t_T1 = 0.5 * (1 + T.sqrt(1. + 4. * self.t_T ** 2))
         t_T1.name = 'fista_T1'
         t_A1 = t_X1 + (self.t_T - 1) / t_T1 * (t_X1 - self.t_X)
-        #t_A1 = t_X1 + (self.t_T - 1) / t_T1 * (t_X1 - self.t_X)
+        #t_A1 = t_X1 + (t_T1 - 1) / self.t_T * (t_X1 - self.t_X)
         t_A1.name = 'fista_A1'
         updates = OrderedDict()
         updates[self.coeff] = t_A1
@@ -197,7 +198,7 @@ class LBFGS_SC:
         """
         t_B  = self.coeff - (1. / self.L) * T.grad(self.t_E_rec, self.coeff)
         t_C  = T.abs_(t_B) - self.lam/ self.L
-        t_A_ista = T.switch(t_B > 0, 1., -1.) * self.threshold(t_C)
+        t_A_ista = T.sgn(t_B) * self.threshold(t_C)
 
         if pos_only:
             t_A_ista = threshold(t_A_ista)
@@ -256,13 +257,14 @@ class LBFGS_SC:
         print('The norm of the data is ', np.mean(np.linalg.norm(data,axis=0)))
         #Update self.data to have new data
         data_norm = np.linalg.norm(data,axis=0)
-        data = data/data_norm[np.newaxis,:]
+        #data = data/data_norm[np.newaxis,:]
+        data = data/data_norm.max()
         SNR_data = np.var(data)
         self.data.set_value(data.astype('float32'))
         return SNR_data
    
     def adjust_LR(self,LR):
-        self.LR = LR
+        self.LR.set_value(LR)
         return
 
 
@@ -275,7 +277,7 @@ class LBFGS_SC:
         norm_grad_basis = T.sqrt(norm_grad_basis)
         dbasis = dbasis/T.maximum(norm_grad_basis.dimshuffle('x',0),1e-1)
         
-        basis = self.basis + self.LR*dbasis
+        basis = self.basis - self.LR*dbasis
         #Normalize basis
         norm_basis = basis**2
         norm_basis = norm_basis.sum(axis=0)
