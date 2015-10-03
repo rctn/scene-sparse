@@ -108,7 +108,7 @@ if __name__ == "__main__":
         print('Unable to navigate to the folder where we want to save data dumps')
 
     #Create object
-    lbfgs_sc = sparse_code_gpu.LBFGS_SC(LR=LR,lam=lam,batch=batch,basis_no=basis_no,patchdim=patchdim,savepath=matfile_write_path)
+    sc = sparse_code_gpu.SparseCode(LR=LR,lam=lam,batch=batch,basis_no=basis_no,patchdim=patchdim,savepath=matfile_write_path)
     residual_list=[]
     sparsity_list=[]
     energy_list = []
@@ -122,11 +122,11 @@ if __name__ == "__main__":
           r = border + np.ceil((imsize-sz-2*border) * random.uniform(0, 1))
           c = border + np.ceil((imsize-sz-2*border) * random.uniform(0, 1))
           data[:,i] = np.reshape(IMAGES[r:r+sz, c:c+sz, imi-1], patch_dim, 1)
-        SNR_I_2 = lbfgs_sc.load_data(data)
+        SNR_I_2 = sc.load_data(data)
         tm2 = time.time()
         print('*****************Adjusting Learning Rate*******************')
         adj_LR = adjust_LR(LR,ii)
-        lbfgs_sc.adjust_LR(adj_LR)
+        sc.adjust_LR(adj_LR)
         print('Training iteration -- ',ii)
         #Note this way, each column is a data vector
         tm3 = time.time()
@@ -134,7 +134,7 @@ if __name__ == "__main__":
         jj = 0
         ''' 
         while True: 
-            obj,active_infer = lbfgs_sc.infer_coeff_gd()            
+            obj,active_infer = sc.infer_coeff_gd()            
             if np.mod(jj,10)==0:
                 print('Value of objective function from previous iteration of coeff update',obj)
             if (np.abs(prev_obj - obj) < err_eps) or (jj > 100):
@@ -143,13 +143,13 @@ if __name__ == "__main__":
                 prev_obj = obj
             jj = jj + 1
         '''
-        lbfgs_sc.infer_fista()
-        residual,active,basis,energy=lbfgs_sc.update_basis()
-        #lbfgs_sc.infer_coeff()
+        sc.infer_fista()
+        residual, active, energy = sc.update_basis()
+        #sc.infer_coeff()
         residual_list.append(residual)
         energy_list.append(energy)
         tm5 = time.time()
-        denom = lbfgs_sc.recon.get_value()
+        denom = sc.recon.get_value()
         denom_var = np.var(denom)
         snr = SNR_I_2/(denom_var)
         snr = 10*np.log10(snr)
@@ -163,14 +163,14 @@ if __name__ == "__main__":
         if np.mod(ii,10)==0:
             print('Saving the basis now, for iteration ',ii)
             scene_basis = {
-            'basis': lbfgs_sc.basis.get_value(),
+            'basis': sc.basis.get_value(),
             'residuals':residual_list,
             'sparsity':sparsity_list,
             'snr':snr_list
             }
             scio.savemat('basis',scene_basis)
             print('Saving basis visualizations now')
-            lbfgs_sc.visualize_basis(ii,[16,16])
+            sc.visualize_basis(ii,[16,16])
             print('Saving data visualizations now')
             visualize_data(data,ii,patchdim,[16,16])
             print('Saving SNR')
@@ -180,5 +180,5 @@ if __name__ == "__main__":
             print('Saving R_error')
             plot_residuals(residual_list)
             print('Average Coefficients')
-            lbfgs_sc.plot_mean_firing(ii)
+            sc.plot_mean_firing(ii)
             print('Visualizations done....back to work now')
