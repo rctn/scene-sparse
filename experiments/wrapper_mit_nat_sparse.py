@@ -22,9 +22,12 @@ import tables
 import utilities
 
 def adjust_LR(LR, iterations):
-    T = 2000
-    scale = 1.0/(1.0 + (iterations/T))
-    new_LR = scale* LR
+    if iterations>2000:
+        T = 1000
+        scale = 1.0/(1.0 + (iterations/T))
+        new_LR = scale* LR
+    else:
+        new_LR = LR
     print('.......................New Learning Rate is........................',new_LR)
     return new_LR
 
@@ -96,7 +99,7 @@ if __name__ == "__main__":
     #Inference Variables
     LR = 1e-1 
     training_iter = 10000 
-    lam = 1e-1 
+    lam = 1e-2
     err_eps = 1e-3
     orig_patchdim = 32 
     patchdim = np.asarray([0,0])
@@ -127,15 +130,13 @@ if __name__ == "__main__":
     sparsity_list=[]
     snr_list=[]
     for ii in np.arange(training_iter):
-	tm1 = time.time()
-	print('Loading new Data')
-	data=make_data(h,outdoor_list,batch)
-	lbfgs_sc.load_data(data)
-	SNR_I_2 = np.var(data)
-	tm2 = time.time()
+        tm1 = time.time()
+        print('Loading new Data')
+        data=make_data(h,outdoor_list,batch)
+        SNR_I_2 = lbfgs_sc.load_data(data)
         #print('*****************Adjusting Learning Rate*******************')
-        #adj_LR = adjust_LR(LR,ii)
-        #lbfgs_sc.adjust_LR(adj_LR)
+        adj_LR = adjust_LR(LR,ii)
+        lbfgs_sc.adjust_LR(adj_LR)
         print('Training iteration -- ',ii)
         #Note this way, each column is a data vector
         tm3 = time.time()
@@ -152,25 +153,19 @@ if __name__ == "__main__":
                 prev_obj = obj
             jj = jj + 1
         '''
-        active_infer,res = lbfgs_sc.infer_coeff()
-        sparsity_list.append(active_infer)
-        tm4 = time.time()
-        residual,active,basis=lbfgs_sc.update_basis()
+        lbfgs_sc.infer_fista()
+        residual,active,basis,E=lbfgs_sc.update_basis()
         residual_list.append(residual)
-        tm5 = time.time()
         denom = lbfgs_sc.recon.get_value()
         denom_var = np.var(denom)
         snr = SNR_I_2/(denom_var)
         snr = 10*np.log10(snr)
         snr_list.append(snr)
-	print('Time to load data in seconds', tm2-tm1)
-        print('Infer coefficients cost in seconds', tm4-tm3)
-        print('The value of active coefficients after we do inference ', active_infer)
         print('The value of residual after we do learning ....', residual)
         print('The SNR for the model is .........',snr)
         print('The value of active coefficients after we do learning ....',active)
         print('The mean norm of the basis is .....',np.mean(np.linalg.norm(basis,axis=0)))
-        print('Updating basis cost in seconds',tm5-tm4)
+        #print('The value of the Energy functional is ....',E)
         #residual_list.append(residual)
         if np.mod(ii,10)==0:
             print('Saving the basis now, for iteration ',ii)
@@ -184,7 +179,7 @@ if __name__ == "__main__":
             print('Saving basis visualizations now')
             lbfgs_sc.visualize_basis(ii,[orig_patchdim,orig_patchdim])
             print('Saving data visualizations now')
-            visualize_data(data,ii,patchdim,[20,10])
+            visualize_data(lbfgs_sc.data.get_value(),ii,patchdim,[20,10])
             print('Saving SNR')
             plot_SNR(snr_list)
             print('Saving R_error')

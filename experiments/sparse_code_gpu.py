@@ -20,7 +20,7 @@ class LBFGS_SC:
         if LR is None:
             self.LR = 0.1
         else:
-            self.LR = LR
+            self.LR = np.array(LR,dtype='float32')
         if lam is None:
             self.lam = 0.1
         else:
@@ -181,8 +181,8 @@ class LBFGS_SC:
         t_X1 = t_A_ista
         t_T1 = 0.5 * (1 + T.sqrt(1. + 4. * self.t_T ** 2))
         t_T1.name = 'fista_T1'
-        t_A1 = t_X1 + (self.t_T - 1) / t_T1 * (t_X1 - self.t_X)
-        #t_A1 = t_X1 + (t_T1 - 1) / self.t_T * (t_X1 - self.t_X)
+        #t_A1 = t_X1 + (self.t_T - 1) / t_T1 * (t_X1 - self.t_X)
+        t_A1 = t_X1 + (t_T1 - 1) / self.t_T * (t_X1 - self.t_X)
         t_A1.name = 'fista_A1'
         updates = OrderedDict()
         updates[self.coeff] = t_A1
@@ -264,7 +264,7 @@ class LBFGS_SC:
         return SNR_data
    
     def adjust_LR(self,LR):
-        self.LR.set_value(LR)
+        self.LR.set_value(np.array(LR,dtype='float32'))
         return
 
 
@@ -286,8 +286,8 @@ class LBFGS_SC:
         #Now updating reconstructions
         recon = self.basis.dot(self.coeff)
         updates = OrderedDict()
-        updates[self.basis]= basis.astype('float32')
-        updates[self.recon]= recon.astype('float32')
+        updates[self.basis]= basis
+        updates[self.recon]= recon
         #Now setting the previous basis to this time around
         #Computing Average Residual
         tmp = (self.data - self.basis.dot(self.coeff))**2
@@ -296,7 +296,7 @@ class LBFGS_SC:
         #Computing how much coefficients are "on"
         #num_on = T.abs_(self.coeff).sum().astype('float32')
         num_on = T.switch(T.abs_(self.coeff)>0,1,0).sum(axis=0).mean()
-        f = theano.function([],[Residual.astype('float32'),num_on,basis,self.t_E], updates=updates)
+        f = theano.function([],[Residual,num_on,basis,self.t_E], updates=updates)
         return f 
 
     def visualize_basis(self,iteration,image_shape=None):
