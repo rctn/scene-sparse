@@ -72,7 +72,6 @@ class SparseCode:
         '''
         #This calls the fista_update function and creates a function handle
         self.fista_step = theano.function(inputs = [],
-                                     outputs = [self.t_E, self.t_E_rec, self.t_E_sp],
                                      updates = self.fista_updates())
     def calculate_fista_L(self):
         """
@@ -129,8 +128,8 @@ class SparseCode:
         t_X1 = t_A_ista
         t_T1 = 0.5 * (1 + T.sqrt(1. + 4. * self.t_T ** 2))
         t_T1.name = 'fista_T1'
-        t_A1 = t_X1 + (self.t_T - 1) / t_T1 * (t_X1 - self.t_X)
-        #t_A1 = t_X1 + (t_T1 - 1) / self.t_T * (t_X1 - self.t_X)
+        #t_A1 = t_X1 + (self.t_T - 1) / t_T1 * (t_X1 - self.t_X)
+        t_A1 = t_X1 + (t_T1 - 1) / self.t_T * (t_X1 - self.t_X)
         t_A1.name = 'fista_A1'
 
         updates = OrderedDict()
@@ -171,11 +170,8 @@ class SparseCode:
         self.calculate_fista_L()
         self.reset_fista_variables()
         for ii in range(self.N_g_itr):
-            E, E_rec, E_sp = self.fista_step( )
+            self.fista_step()
             if np.mod(ii,99)==0:
-                print('E ',E)
-                print('E_rec',E_rec)
-                print('E_sp', E_sp)
                 print('L ', self.L.get_value())
                 print('Mean abs coeff value', self.coeff.get_value().max())
                 #print('Mean abs coeff value', self.coeff.get_value()[:,0])
@@ -214,8 +210,8 @@ class SparseCode:
         recon = self.basis.dot(self.coeff)
 
         updates = OrderedDict()
-        updates[self.basis]= basis.astype(dtype)
-        updates[self.recon]= recon.astype(dtype)
+        updates[self.basis]= basis
+        updates[self.recon]= recon
         #Now setting the previous basis to this time around
         #Computing Average Residual
         tmp = (self.data - self.basis.dot(self.coeff))**2
@@ -224,7 +220,8 @@ class SparseCode:
         #Computing how much coefficients are "on"
         #num_on = abs(self.coeff).sum().astype(dtype)
         num_on = T.switch(abs(self.coeff)>0, 1., 0.).sum(axis=0).mean()
-        f = theano.function([],[Residual, num_on, self.t_E], updates=updates)
+        outputs = [Residual, num_on, self.t_E, self.t_E_rec, self.t_E_sp]
+        f = theano.function([], outputs, updates=updates)
         return f 
 
     def visualize_basis(self,iteration,image_shape=None):
@@ -255,6 +252,3 @@ class SparseCode:
         plt.savefig('hist'+savepath_image)
         plt.close()
         '''
-        return
-
-

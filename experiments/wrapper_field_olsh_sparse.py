@@ -23,9 +23,10 @@ import random
 import utilities
 
 def adjust_LR(LR, iterations):
-    T = 200
-    scale = 1.0/(1.0 + (iterations/T))
-    new_LR = scale* LR
+    if iterations > 2000:
+        T = 1000
+        scale = 1.0/(1.0 + (iterations/T))
+        new_LR = scale* LR
     print('.......................New Learning Rate is........................',new_LR)
     return new_LR
 
@@ -76,11 +77,11 @@ if __name__ == "__main__":
     (imsize, imsize,num_images) = np.shape(IMAGES)
     print('Could not get file handle. Aborting')
     #Inference Variables
-    LR = 5e-2 
-    training_iter = 2000 
-    lam = 5e-2 
+    LR = 1e-1 
+    training_iter = 10000 
+    lam = 1e-2 
     err_eps = 1e-3
-    orig_patchdim = 8 
+    orig_patchdim = 32 
     patch_dim = orig_patchdim**2
     patchdim = np.asarray([0,0])
     patchdim[0] = orig_patchdim 
@@ -89,7 +90,7 @@ if __name__ == "__main__":
     print('patchdim is ---',patchdim)
     batch = 200 
     data = np.zeros((orig_patchdim**2,batch))
-    basis_no = 4*(orig_patchdim**2)
+    basis_no = 1*(orig_patchdim**2)
     border = 4
     matfile_write_path = write_path+'IMAGES_' + str(orig_patchdim) + 'x' + str(orig_patchdim) + '__LR_'+str(LR)+'_batch_'+str(batch)+'_basis_no_'+str(basis_no)+'_lam_'+str(lam)+'_basis'
 
@@ -125,8 +126,8 @@ if __name__ == "__main__":
         SNR_I_2 = sc.load_data(data)
         tm2 = time.time()
         print('*****************Adjusting Learning Rate*******************')
-        adj_LR = adjust_LR(LR,ii)
-        sc.adjust_LR(adj_LR)
+        #adj_LR = adjust_LR(LR,ii)
+        #lbfgs_sc.adjust_LR(adj_LR)
         print('Training iteration -- ',ii)
         #Note this way, each column is a data vector
         tm3 = time.time()
@@ -144,10 +145,10 @@ if __name__ == "__main__":
             jj = jj + 1
         '''
         sc.infer_fista()
-        residual, active, energy = sc.update_basis()
+        residual, active, E, E_rec, E_sp = sc.update_basis()
         #sc.infer_coeff()
         residual_list.append(residual)
-        energy_list.append(energy)
+        energy_list.append(E)
         tm5 = time.time()
         denom = sc.recon.get_value()
         denom_var = np.var(denom)
@@ -157,7 +158,10 @@ if __name__ == "__main__":
         print('Time to load data in seconds', tm2-tm1)
         print('The value of residual after we do learning ....', residual)
         print('The SNR for the model is .........',snr)
-        print('The value of active coefficients after we do learning ....',active)
+        print('The mean number of active coefficients: ',active)
+        print('Total Energy: ', E)
+        print('Rec Energy: ', E_rec)
+        print('Sp Energy: ', E_sp)
         print('The mean norm of the basis is .....',np.mean(np.linalg.norm(basis,axis=0)))
         #residual_list.append(residual)
         if np.mod(ii,10)==0:
