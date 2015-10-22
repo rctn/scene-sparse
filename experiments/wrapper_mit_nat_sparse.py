@@ -99,7 +99,7 @@ if __name__ == "__main__":
     #Inference Variables
     LR = 1e-1 
     training_iter = 10000 
-    lam = 1e-2
+    lam = 1e-1
     err_eps = 1e-3
     orig_patchdim = 32 
     patchdim = np.asarray([0,0])
@@ -108,7 +108,7 @@ if __name__ == "__main__":
     print('patchdim is ---',patchdim)
     batch = 200 
     basis_no =1*(orig_patchdim**2)
-    matfile_write_path = write_path+'outdoor_LR_'+str(LR)+'_batch_'+str(batch)+'_basis_no_'+str(basis_no)+'_lam_'+str(lam)+'_basis'
+    matfile_write_path = write_path+'indoor_LR_'+str(LR)+'_batch_'+str(batch)+'_basis_no_'+str(basis_no)+'_lam_'+str(lam)+'_basis'
 
     #Making and Changing directory
     try:
@@ -125,65 +125,50 @@ if __name__ == "__main__":
         print('Unable to navigate to the folder where we want to save data dumps')
 
     #Create object
-    lbfgs_sc = sparse_code_gpu.LBFGS_SC(LR=LR,lam=lam,batch=batch,basis_no=basis_no,patchdim=patchdim,savepath=matfile_write_path)
+    sc = sparse_code_gpu.SparseCode(LR=LR,lam=lam,batch=batch,basis_no=basis_no,patchdim=patchdim,savepath=matfile_write_path)
     residual_list=[]
     sparsity_list=[]
     snr_list=[]
     for ii in np.arange(training_iter):
         tm1 = time.time()
         print('Loading new Data')
-        data=make_data(h,outdoor_list,batch)
-        SNR_I_2 = lbfgs_sc.load_data(data)
+        data=make_data(h,indoor_list,batch)
+        sc.load_data(data)
         #print('*****************Adjusting Learning Rate*******************')
         adj_LR = adjust_LR(LR,ii)
-        lbfgs_sc.adjust_LR(adj_LR)
+        sc.adjust_LR(adj_LR)
         print('Training iteration -- ',ii)
         #Note this way, each column is a data vector
         tm3 = time.time()
         prev_obj = 1e6 
-        jj = 0
-        ''' 
-        while True: 
-            obj,active_infer = lbfgs_sc.infer_coeff_gd()            
-            if np.mod(jj,10)==0:
-                print('Value of objective function from previous iteration of coeff update',obj)
-            if (np.abs(prev_obj - obj) < err_eps) or (jj > 100):
-                break
-            else:
-                prev_obj = obj
-            jj = jj + 1
-        '''
-        lbfgs_sc.infer_fista()
-        residual,active,basis,E=lbfgs_sc.update_basis()
+        sc.infer_fista()
+        residual, active, E, E_rec, E_sp, snr = sc.update_basis()
         residual_list.append(residual)
-        denom = lbfgs_sc.recon.get_value()
-        denom_var = np.var(denom)
-        snr = SNR_I_2/(denom_var)
         snr = 10*np.log10(snr)
         snr_list.append(snr)
         print('The value of residual after we do learning ....', residual)
         print('The SNR for the model is .........',snr)
-        print('The value of active coefficients after we do learning ....',active)
-        print('The mean norm of the basis is .....',np.mean(np.linalg.norm(basis,axis=0)))
-        #print('The value of the Energy functional is ....',E)
-        #residual_list.append(residual)
+        print('The mean number of active coefficients: ',active)
+        print('Total Energy: ', E)
+        print('Rec Energy: ', E_rec)
+        print('Sp Energy: ', E_sp)
         if np.mod(ii,10)==0:
             print('Saving the basis now, for iteration ',ii)
             scene_basis = {
-            'basis': lbfgs_sc.basis.get_value(),
+            'basis': sc.basis.get_value(),
             'residuals':residual_list,
             'sparsity':sparsity_list,
             'snr':snr_list
             }
             scio.savemat('basis',scene_basis)
             print('Saving basis visualizations now')
-            lbfgs_sc.visualize_basis(ii,[orig_patchdim,orig_patchdim])
+            sc.visualize_basis(ii,[orig_patchdim,orig_patchdim])
             print('Saving data visualizations now')
-            visualize_data(lbfgs_sc.data.get_value(),ii,patchdim,[20,10])
+            visualize_data(sc.data.get_value(),ii,patchdim,[20,10])
             print('Saving SNR')
             plot_SNR(snr_list)
             print('Saving R_error')
             plot_residuals(residual_list)
             print('Average Coefficients')
-            lbfgs_sc.plot_mean_firing(ii)
+            sc.plot_mean_firing(ii)
             print('Visualizations done....back to work now')

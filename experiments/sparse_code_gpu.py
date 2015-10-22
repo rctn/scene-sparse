@@ -54,11 +54,12 @@ class SparseCode:
         self.t_E_sp.name = 't_E_sp'
         self.t_E = self.t_E_rec + self.t_E_sp
         self.t_E.name = 't_E'
+        self.t_SNR = T.var(self.data)/(T.var(self.data - self.recon))
+        self.t_SNR.name = 't_SNR'
 
         #Calling Fista Initialization
-        self.fista_init()
         print('Compiling theano inference function')
-        self.f = self.create_coeff_fn()
+        self.fista_init()
         print('Compiling theano basis function') 
         self.update_basis = self.create_update_basis()
         return 
@@ -183,7 +184,7 @@ class SparseCode:
         data_norm = np.linalg.norm(data,axis=0)
         #data = data/data_norm[np.newaxis,:]
         data = data/data_norm.max()
-        SNR_data = np.var(data)
+        SNR_data = np.var(data,axis=0).mean()
         self.data.set_value(data.astype(dtype))
         return SNR_data
    
@@ -214,13 +215,14 @@ class SparseCode:
         updates[self.recon]= recon
         #Now setting the previous basis to this time around
         #Computing Average Residual
-        tmp = (self.data - self.basis.dot(self.coeff))**2
+        Residual = (self.data - self.basis.dot(self.coeff))
+        tmp = Residual**2
         tmp = 0.5 * tmp.sum(axis=0).mean()
-        Residual = tmp
+        Residual_avg = tmp
         #Computing how much coefficients are "on"
         #num_on = abs(self.coeff).sum().astype(dtype)
         num_on = T.switch(abs(self.coeff)>0, 1., 0.).sum(axis=0).mean()
-        outputs = [Residual, num_on, self.t_E, self.t_E_rec, self.t_E_sp]
+        outputs = [Residual,Residual_avg, num_on, self.t_E, self.t_E_rec, self.t_E_sp,self.t_SNR]
         f = theano.function([], outputs, updates=updates)
         return f 
 

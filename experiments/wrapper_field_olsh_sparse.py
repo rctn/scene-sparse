@@ -115,7 +115,6 @@ if __name__ == "__main__":
     energy_list = []
     snr_list=[]
     for ii in np.arange(training_iter):
-        tm1 = time.time()
         print('Loading new Data')
         for i in range(batch):
           #Moving the image choosing inside the loop, so we get more randomness in image choice
@@ -124,45 +123,30 @@ if __name__ == "__main__":
           c = border + np.ceil((imsize-sz-2*border) * random.uniform(0, 1))
           data[:,i] = np.reshape(IMAGES[r:r+sz, c:c+sz, imi-1], patch_dim, 1)
         SNR_I_2 = sc.load_data(data)
-        tm2 = time.time()
         print('*****************Adjusting Learning Rate*******************')
         #adj_LR = adjust_LR(LR,ii)
         #lbfgs_sc.adjust_LR(adj_LR)
         print('Training iteration -- ',ii)
         #Note this way, each column is a data vector
-        tm3 = time.time()
-        prev_obj = 1e6 
-        jj = 0
-        ''' 
-        while True: 
-            obj,active_infer = sc.infer_coeff_gd()            
-            if np.mod(jj,10)==0:
-                print('Value of objective function from previous iteration of coeff update',obj)
-            if (np.abs(prev_obj - obj) < err_eps) or (jj > 100):
-                break
-            else:
-                prev_obj = obj
-            jj = jj + 1
-        '''
         sc.infer_fista()
-        residual, active, E, E_rec, E_sp = sc.update_basis()
+        residual, residual_avg, active, E, E_rec, E_sp, t_snr = sc.update_basis()
         #sc.infer_coeff()
-        residual_list.append(residual)
+        residual_list.append(residual_avg)
         energy_list.append(E)
-        tm5 = time.time()
-        denom = sc.recon.get_value()
-        denom_var = np.var(denom)
-        snr = SNR_I_2/(denom_var)
-        snr = 10*np.log10(snr)
+        recon = sc.recon.get_value()
+        #denom = data - recon 
+        #denom_var = np.var(denom,axis=0).mean()
+        denom_var = np.var(residual,axis=0).mean()
+        #snr = SNR_I_2/(denom_var)
+        snr = (np.var(recon,axis=0).mean())/(denom_var)
+        #snr = 10*np.log10(snr)
         snr_list.append(snr)
-        print('Time to load data in seconds', tm2-tm1)
-        print('The value of residual after we do learning ....', residual)
+        print('The value of residual after we do learning ....', residual_avg)
         print('The SNR for the model is .........',snr)
         print('The mean number of active coefficients: ',active)
         print('Total Energy: ', E)
         print('Rec Energy: ', E_rec)
         print('Sp Energy: ', E_sp)
-        print('The mean norm of the basis is .....',np.mean(np.linalg.norm(basis,axis=0)))
         #residual_list.append(residual)
         if np.mod(ii,10)==0:
             print('Saving the basis now, for iteration ',ii)
