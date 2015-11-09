@@ -236,6 +236,24 @@ class SparseCode:
         plt.close()
         return
 
+    def visualize_recon(self,iteration,image_shape=None):
+        tmp = self.recon.get_value()
+        out_image = utilities.tile_raster_images(tmp.T,self.patchdim,image_shape,tile_spacing = (1,1))
+        plt.imshow(out_image,cmap=cm.Greys_r)
+        savepath_image= 'vis_recon'+ '_iterations_' + str(iteration) + '.png'
+        plt.savefig(savepath_image)
+        plt.close()
+        return
+
+    def visualize_data(self,iteration,image_shape=None):
+        tmp = self.data.get_value()
+        out_image = utilities.tile_raster_images(tmp.T,self.patchdim,image_shape,tile_spacing = (1,1))
+        plt.imshow(out_image,cmap=cm.Greys_r)
+        savepath_image= 'vis_data'+ '_iterations_' + str(iteration) + '.png'
+        plt.savefig(savepath_image)
+        plt.close()
+        return
+
     def plot_mean_firing(self,iteration):
         #Plot mean firing
         mean_coeff = self.coeff.get_value()

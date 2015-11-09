@@ -8,7 +8,7 @@ import numpy as np
 import scipy.io as scio
 from scipy.misc import imread
 import glob
-from scipy.optimize import minimize 
+from scipy.io import loadmat
 import os
 import ipdb
 import sparse_code_gpu
@@ -47,16 +47,6 @@ def plot_SNR(SNR):
     plt.savefig('SNR.png')
     plt.close()
     return
-
-def visualize_data(data,iteration,patchdim,image_shape=None):
-    #Use function we wrote previously
-    out_image = utilities.tile_raster_images(data.T,patchdim,image_shape)
-    plt.imshow(out_image,cmap=cm.Greys_r)
-    savepath_image= 'vis_data'+ '_iterations_' + str(iteration) + '.png'
-    plt.savefig(savepath_image)
-    plt.close()
-    return
-
 
 def load_list(filename_no_extension):
     """
@@ -125,54 +115,30 @@ if __name__ == "__main__":
         print('Unable to navigate to the folder where we want to save data dumps')
 
     #Create object
-    sc = sparse_code_gpu.SparseCode(LR=LR,lam=lam,batch=batch,basis_no=basis_no,patchdim=patchdim,savepath=matfile_write_path)
+    data_obj = loadmat(matfile_write_path + '/basis.mat')
+    basis = data_obj['basis']
+    sc = sparse_code_gpu.SparseCode(LR=LR,lam=lam,batch=batch,basis_no=basis_no,patchdim=patchdim,savepath=matfile_write_path,basis=basis)
     residual_list=[]
     sparsity_list=[]
     snr_list=[]
-    for ii in np.arange(training_iter):
-        tm1 = time.time()
-        print('Loading new Data')
-        data=make_data(h,outdoor_list,batch)
-        sc.load_data(data)
-        #print('*****************Adjusting Learning Rate*******************')
-        adj_LR = adjust_LR(LR,ii)
-        sc.adjust_LR(adj_LR)
-        print('Training iteration -- ',ii)
-        #Note this way, each column is a data vector
-        tm3 = time.time()
-        prev_obj = 1e6 
-        sc.infer_fista()
-        residual, residual_avg, active, E, E_rec, E_sp, t_snr = sc.update_basis()
-        residual_list.append(residual_avg)
-        #snr = 10*np.log10(snr)
-        recon = sc.recon.get_value()
-        snr = np.var(recon,axis=0).mean()/np.var(residual,axis=0).mean()
-        snr_list.append(snr)
-        print('The value of residual after we do learning ....', residual_avg)
-        print('The SNR for the model is .........',snr)
-        print('The mean number of active coefficients: ',active)
-        print('Total Energy: ', E)
-        print('Rec Energy: ', E_rec)
-        print('Sp Energy: ', E_sp)
-        if np.mod(ii,10)==0:
-            print('Saving the basis now, for iteration ',ii)
-            scene_basis = {
-            'basis': sc.basis.get_value(),
-            'residuals':residual_list,
-            'sparsity':sparsity_list,
-            'snr':snr_list
-            }
-            scio.savemat('basis',scene_basis)
-            print('Saving basis visualizations now')
-            sc.visualize_basis(ii,[orig_patchdim,orig_patchdim])
-            print('Saving data visualizations now')
-            sc.visualize_data(ii,[20,10])
-            print('Saving data reconstruction visualizations now')
-            sc.visualize_recon(ii,[20,10])
-            print('Saving SNR')
-            plot_SNR(snr_list)
-            print('Saving R_error')
-            plot_residuals(residual_list)
-            print('Average Coefficients')
-            sc.plot_mean_firing(ii)
-            print('Visualizations done....back to work now')
+    print('Loading new Data')
+    data=make_data(h,outdoor_list,batch)
+    sc.load_data(data)
+    #print('*****************Adjusting Learning Rate*******************')
+    #Note this way, each column is a data vector
+    tm3 = time.time()
+    prev_obj = 1e6 
+    sc.infer_fista()
+    #residual, residual_avg, active, E, E_rec, E_sp, t_snr = sc.update_basis()
+    #residual_list.append(residual_avg)
+    #snr = 10*np.log10(snr)
+    recon = sc.recon.get_value()
+    #snr = np.var(recon,axis=0).mean()/np.var(residual,axis=0).mean()
+    #snr_list.append(snr)
+    print('Saving data visualizations now')
+    sc.visualize_basis(500000,[orig_patchdim,orig_patchdim])
+    print('Saving data visualizations now')
+    sc.visualize_data(500000,[20,10])
+    print('Saving data reconstruction visualizations now')
+    sc.visualize_recon(500000,[20,10])
+    print('Visualizations done....back to work now')
