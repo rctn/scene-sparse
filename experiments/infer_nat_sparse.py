@@ -83,7 +83,7 @@ if __name__ == "__main__":
     indoor_list=load_list('indoor_file_list')
     outdoor_list=load_list('outdoor_file_list')
     try:
-        h= tables.open_file('/media/mudigonda/Gondor/Data/scene-sparse/places32_whitened.h5','r') 
+        h= tables.open_file(DATA+'scene-sparse/places32_whitened.h5','r') 
     except:
         print('Could not get file handle. Aborting')
     #Inference Variables
