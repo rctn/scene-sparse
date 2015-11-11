@@ -20,6 +20,7 @@ import matplotlib.cm as cm
 import importlib
 import tables
 import utilities
+import argparse
 
 def adjust_LR(LR, iterations):
     if iterations>2000:
@@ -73,7 +74,14 @@ def make_data(file_hndl,file_list,batch):
     return data
 
 if __name__ == "__main__":
-
+    parser = argparse.ArgumentParser(description='Wrapper script that infers coefficients of images from a trained model')
+    parser.add_argument('--flag',type=str,default='outdoor',help='options include indoor or outdoor. Chooses the right list to load accordingly')
+    parser.add_argument('--LR', type=float, default=1e-1,help="Sets the Learning Rate for the learning and inference")
+    parser.add_argument('--lam', type=float, default=1e-2,help="The value of lambda that helps with the tradeoff between reconstruction and sparsity")
+    parser.add_argument('--batch',type=int,default=200,help="The batch size for running this simulations")
+    parser.add_argument('--basis_no',type=int,default=1024,help="The number of basis elements")
+    parser.add_argument('--patchdim',dest='orig_patchdim',type=int,default=32, help="Number of pixels on the x-dimension of the patch. Assumes square patches")
+    args = parser.parse_args()
     #Environment Variables
     DATA = os.getenv('DATA')
     proj_path = DATA + 'scene-sparse/'
@@ -87,18 +95,20 @@ if __name__ == "__main__":
     except:
         print('Could not get file handle. Aborting')
     #Inference Variables
+    '''
     LR = 1e-1 
     training_iter = 10000 
     lam = 1e-2
     err_eps = 1e-3
     orig_patchdim = 32 
+    '''
     patchdim = np.asarray([0,0])
-    patchdim[0] = orig_patchdim 
-    patchdim[1] = orig_patchdim
+    patchdim[0] = args.orig_patchdim 
+    patchdim[1] = args.orig_patchdim
     print('patchdim is ---',patchdim)
-    batch = 200 
-    basis_no =1*(orig_patchdim**2)
-    matfile_write_path = write_path+'outdoor_LR_'+str(LR)+'_batch_'+str(batch)+'_basis_no_'+str(basis_no)+'_lam_'+str(lam)+'_basis'
+    #batch = 200 
+    #basis_no =1*(args.orig_patchdim**2)
+    matfile_write_path = write_path+args.flag+'_LR_'+str(args.LR)+'_batch_'+str(args.batch)+'_basis_no_'+str(args.basis_no)+'_lam_'+str(args.lam)+'_basis'
 
     #Making and Changing directory
     try:
@@ -117,12 +127,15 @@ if __name__ == "__main__":
     #Create object
     data_obj = loadmat(matfile_write_path + '/basis.mat')
     basis = data_obj['basis']
-    sc = sparse_code_gpu.SparseCode(LR=LR,lam=lam,batch=batch,basis_no=basis_no,patchdim=patchdim,savepath=matfile_write_path,basis=basis)
+    sc = sparse_code_gpu.SparseCode(LR=args.LR,lam=args.lam,batch=args.batch,basis_no=args.basis_no,patchdim=patchdim,savepath=matfile_write_path,basis=basis)
     residual_list=[]
     sparsity_list=[]
     snr_list=[]
     print('Loading new Data')
-    data=make_data(h,outdoor_list,batch)
+    if args.flag == 'outdoor':
+        data=make_data(h,outdoor_list,args.batch)
+    else:
+        data=make_data(h,indoor_list,args.batch)
     sc.load_data(data)
     #print('*****************Adjusting Learning Rate*******************')
     #Note this way, each column is a data vector
@@ -136,7 +149,7 @@ if __name__ == "__main__":
     #snr = np.var(recon,axis=0).mean()/np.var(residual,axis=0).mean()
     #snr_list.append(snr)
     print('Saving data visualizations now')
-    sc.visualize_basis(500000,[orig_patchdim,orig_patchdim])
+    sc.visualize_basis(500000,[args.orig_patchdim,args.orig_patchdim])
     print('Saving data visualizations now')
     sc.visualize_data(500000,[20,10])
     print('Saving data reconstruction visualizations now')
