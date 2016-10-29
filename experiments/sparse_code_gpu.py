@@ -2,7 +2,6 @@ import numpy as np
 from scipy.optimize import minimize
 import theano 
 from theano import tensor as T
-import ipdb
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -20,7 +19,7 @@ dtype = theano.config.floatX
 class SparseCode:
 
     def __init__(self, savepath=None, LR=.1, lam=.1, batch=100,
-                 basis_no=512, patchdim=512, N_g_itr=150, basis=None,
+                 basis_no=512, patchdim=np.asarray([8,8]), N_g_itr=150, sparsity='Laplacian',basis=None,
                  seed=2015103):
         self.lam = lam
         self.batch = batch
@@ -50,7 +49,11 @@ class SparseCode:
 
         self.t_E_rec = 0.5*T.sum((self.data - self.basis.dot(self.coeff))**2)
         self.t_E_rec.name = 't_E_rec'
-        self.t_E_sp = self.lam * abs(self.coeff).sum()
+        print("Sparsity is {}".format(sparsity))
+        if sparsity == 'Laplacian':
+            self.t_E_sp = self.lam * abs(self.coeff).sum()
+        else:
+            self.t_E_sp = self.lam * (T.log(1+self.coeff**2).sum())
         self.t_E_sp.name = 't_E_sp'
         self.t_E = self.t_E_rec + self.t_E_sp
         self.t_E.name = 't_E'
@@ -62,7 +65,13 @@ class SparseCode:
         self.fista_init()
         print('Compiling theano basis function') 
         self.update_basis = self.create_update_basis()
+        self.create_compute_recon()
         return 
+    
+    def create_compute_recon(self):
+        updates = OrderedDict()
+        updates[self.recon] = self.basis*self.coeff
+        self.recon_wrapper = theano.function(inputs=[],updates=updates)
 
     def fista_init(self):
         '''
@@ -226,6 +235,7 @@ class SparseCode:
         f = theano.function([], outputs, updates=updates)
         return f 
 
+
     def visualize_basis(self,iteration,image_shape=None):
         #Use function we wrote previously
         tmp = self.basis.get_value()
@@ -237,6 +247,7 @@ class SparseCode:
         return
 
     def visualize_recon(self,iteration,image_shape=None):
+        self.recon.set_value(self.basis.get_value().dot(self.coeff.get_value()))
         tmp = self.recon.get_value()
         out_image = utilities.tile_raster_images(tmp.T,self.patchdim,image_shape,tile_spacing = (1,1))
         plt.imshow(out_image,cmap=cm.Greys_r)

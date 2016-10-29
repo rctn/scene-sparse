@@ -20,6 +20,7 @@ import importlib
 import tables
 import utilities
 import argparse
+import pickle
 
 def adjust_LR(LR, iterations):
     if iterations>2000:
@@ -58,41 +59,33 @@ def load_list(filename_no_extension):
     assert isinstance(module.content, list)
     return module.content
 
-def make_data(file_hndl,file_list,batch):
-
-    data=np.zeros([32*32,batch])
-    gen_idx = np.random.randint(0,len(file_list),batch)
-    idx = 0
-    for ii in np.arange(batch):
-        try:
-            data[:,idx] = file_hndl.root._f_get_child(file_list[gen_idx[ii]])[:]
-        except:
-            print('Could not extract indoor image with id ',gen_idx[ii])
-        idx = idx + 1
-
-    return data
+def get_data(data,patchdim,patches,ONE=True):
+    size = data.shape
+    if ONE:
+        kk = 0
+        batch_data = np.zeros((patchdim**2,patches))
+        for ii in np.arange(0,size[0],patchdim):
+            for jj in np.arange(0,size[1],patchdim):
+                batch_data[:,kk] = data[ii:ii+patchdim,jj:jj+patchdim,0].flatten()
+                kk += 1
+    return batch_data
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Wrapper script that infers coefficients of images from a trained model')
-    parser.add_argument('--flag',type=str,default='outdoor',help='options include indoor or outdoor. Chooses the right list to load accordingly')
     parser.add_argument('--LR', type=float, default=1e-1,help="Sets the Learning Rate for the learning and inference")
     parser.add_argument('--lam', type=float, default=1e-2,help="The value of lambda that helps with the tradeoff between reconstruction and sparsity")
-    parser.add_argument('--batch',type=int,default=200,help="The batch size for running this simulations")
     parser.add_argument('--basis_no',type=int,default=1024,help="The number of basis elements")
-    parser.add_argument('--patchdim',dest='orig_patchdim',type=int,default=32, help="Number of pixels on the x-dimension of the patch. Assumes square patches")
+    parser.add_argument('--patchdim',dest='orig_patchdim',type=int,default=16, help="Number of pixels on the x-dimension of the patch. Assumes square patches")
+    parser.add_argument('--patches',type=int,default=1024,help="Number of patches to run inference on")
+    parser.add_argument('--batch',type=int,default=200,help="Batch size used during training")
+    parser.add_argument('--sparsity',type=str,default='Cauchy',help="Specifies the type of sparsity")
     args = parser.parse_args()
     #Environment Variables
     DATA = os.getenv('DATA')
     proj_path = DATA + 'scene-sparse/'
     write_path = proj_path + 'experiments/'
-
-    print('Loading File lists')
-    indoor_list=load_list('indoor_file_list')
-    outdoor_list=load_list('outdoor_file_list')
-    try:
-        h= tables.open_file(DATA+'scene-sparse/places32_whitened.h5','r') 
-    except:
-        print('Could not get file handle. Aborting')
+    data_dict = scio.loadmat(proj_path + 'IMAGES.mat')
+    IMAGES = data_dict['IMAGES']
     #Inference Variables
     '''
     LR = 1e-1 
@@ -107,7 +100,7 @@ if __name__ == "__main__":
     print('patchdim is ---',patchdim)
     #batch = 200 
     #basis_no =1*(args.orig_patchdim**2)
-    matfile_write_path = write_path+args.flag+'_LR_'+str(args.LR)+'_batch_'+str(args.batch)+'_basis_no_'+str(args.basis_no)+'_lam_'+str(args.lam)+'_basis'
+    matfile_write_path = write_path+'IMAGES_'+str(args.orig_patchdim)+'x'+str(args.orig_patchdim)+'__LR_'+str(args.LR)+'_batch_'+str(args.batch)+'_basis_no_'+str(args.basis_no)+'_lam_'+str(args.lam)+'_basis_' + args.sparsity
 
     #Making and Changing directory
     try:
@@ -126,31 +119,25 @@ if __name__ == "__main__":
     #Create object
     data_obj = loadmat(matfile_write_path + '/basis.mat')
     basis = data_obj['basis']
-    sc = sparse_code_gpu.SparseCode(LR=args.LR,lam=args.lam,batch=args.batch,basis_no=args.basis_no,patchdim=patchdim,savepath=matfile_write_path,basis=basis)
+    sc = sparse_code_gpu.SparseCode(LR=args.LR,lam=args.lam,batch=args.patches,basis_no=args.basis_no,patchdim=patchdim,savepath=matfile_write_path,basis=basis,sparsity=args.sparsity)
     residual_list=[]
     sparsity_list=[]
     snr_list=[]
     print('Loading new Data')
-    if args.flag == 'outdoor':
-        data=make_data(h,outdoor_list,args.batch)
-    else:
-        data=make_data(h,indoor_list,args.batch)
+    data = get_data(IMAGES,args.orig_patchdim,args.patches,ONE=True)
     sc.load_data(data)
     #print('*****************Adjusting Learning Rate*******************')
     #Note this way, each column is a data vector
     tm3 = time.time()
     prev_obj = 1e6 
     sc.infer_fista()
-    #residual, residual_avg, active, E, E_rec, E_sp, t_snr = sc.update_basis()
-    #residual_list.append(residual_avg)
-    #snr = 10*np.log10(snr)
-    recon = sc.recon.get_value()
-    #snr = np.var(recon,axis=0).mean()/np.var(residual,axis=0).mean()
-    #snr_list.append(snr)
     print('Saving data visualizations now')
     sc.visualize_basis(500000,[args.orig_patchdim,args.orig_patchdim])
     print('Saving data visualizations now')
-    sc.visualize_data(500000,[20,10])
+    sc.visualize_data(500000,[32,32])
     print('Saving data reconstruction visualizations now')
-    sc.visualize_recon(500000,[20,10])
+    sc.visualize_recon(500000,[32,32])
     print('Visualizations done....back to work now')
+    data_dict = {'data':data,'basis':data_obj['basis'],\
+    'coeff':sc.coeff.get_value(),'recon':sc.recon.get_value()}
+    pickle.dump(data_dict,open(matfile_write_path+'/dump.pkl','w'))

@@ -10,7 +10,6 @@ from scipy.misc import imread
 import glob
 from scipy.optimize import minimize 
 import os
-import ipdb
 import sparse_code_gpu
 import time
 import theano.tensor as T
@@ -77,11 +76,12 @@ if __name__ == "__main__":
     (imsize, imsize,num_images) = np.shape(IMAGES)
     print('Could not get file handle. Aborting')
     #Inference Variables
+    sparsity='Cauchy'
     LR = 1e-1 
     training_iter = 10000 
     lam = 1e-2 
     err_eps = 1e-3
-    orig_patchdim = 32 
+    orig_patchdim = 16 
     patch_dim = orig_patchdim**2
     patchdim = np.asarray([0,0])
     patchdim[0] = orig_patchdim 
@@ -90,9 +90,9 @@ if __name__ == "__main__":
     print('patchdim is ---',patchdim)
     batch = 200 
     data = np.zeros((orig_patchdim**2,batch))
-    basis_no = 1*(orig_patchdim**2)
+    basis_no = 4*(orig_patchdim**2)
     border = 4
-    matfile_write_path = write_path+'IMAGES_' + str(orig_patchdim) + 'x' + str(orig_patchdim) + '__LR_'+str(LR)+'_batch_'+str(batch)+'_basis_no_'+str(basis_no)+'_lam_'+str(lam)+'_basis'
+    matfile_write_path = write_path+'IMAGES_' + str(orig_patchdim) + 'x' + str(orig_patchdim) + '__LR_'+str(LR)+'_batch_'+str(batch)+'_basis_no_'+str(basis_no)+'_lam_'+str(lam)+'_basis_' + sparsity
 
     #Making and Changing directory
     try:
@@ -109,7 +109,7 @@ if __name__ == "__main__":
         print('Unable to navigate to the folder where we want to save data dumps')
 
     #Create object
-    sc = sparse_code_gpu.SparseCode(LR=LR,lam=lam,batch=batch,basis_no=basis_no,patchdim=patchdim,savepath=matfile_write_path)
+    sc = sparse_code_gpu.SparseCode(LR=LR,lam=lam,batch=batch,basis_no=basis_no,patchdim=patchdim,savepath=matfile_write_path,sparsity=sparsity)
     residual_list=[]
     sparsity_list=[]
     energy_list = []

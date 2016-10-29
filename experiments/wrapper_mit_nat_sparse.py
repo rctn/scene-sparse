@@ -20,6 +20,7 @@ import matplotlib.cm as cm
 import importlib
 import tables
 import utilities
+import argparse
 
 def adjust_LR(LR, iterations):
     if iterations>2000:
